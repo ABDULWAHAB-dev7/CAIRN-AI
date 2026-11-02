@@ -51,10 +51,10 @@ SHIM = r"""
     return real(url, opts);
   };
   addEventListener('DOMContentLoaded', () => {
-    const r = document.createElement('div');
-    r.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:6px;z-index:20;background:#3a2a08;border:1px solid #fbbf24;color:#fde68a;padding:4px 12px;border-radius:6px;font:12px system-ui';
-    r.textContent = 'Read-only replay of a SIMULATED session. No camera, no model. Not evidence about real perception.';
-    document.body.appendChild(r);
+    const top = document.getElementById('top'); if (!top) return;
+    const pill = document.createElement('span'); pill.className = 'pill'; pill.setAttribute('role', 'note');
+    pill.textContent = 'Read-only replay of a simulated session. No camera, no model.';
+    top.insertBefore(pill, document.getElementById('meta'));
   });
 })();
 </script>
@@ -140,7 +140,8 @@ def main() -> None:
         meta = {"id": "demo", "device": dev.id, "technician": "tech_a", "bench": "bench_02", "job_number": "J-1042",
                 "phase": snap["phase"], "events": snap["events"], "verified": True, "closed": "verified"}
         (out / "data" / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
-        (out / "data" / "session.json").write_text(json.dumps({**meta, "snapshot": snap, "recent_alerts": []}), encoding="utf-8")
+        (out / "data" / "session.json").write_text(json.dumps({**meta, "snapshot": snap, "recent_alerts": [],
+                                                              "latest_frame": store.order[-1]}), encoding="utf-8")
         b = p["body"]
         (out / "v.html").write_text(VERIFY_PAGE.format(
             status=b["status"], job=b["job_number"], device=b["device"]["label"],

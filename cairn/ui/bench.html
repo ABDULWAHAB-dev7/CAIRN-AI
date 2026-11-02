@@ -9,6 +9,7 @@
   html,body{height:100%}
   body{display:grid;grid-template-columns:236px minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) 210px auto;
     grid-template-areas:"top top top" "left feed feed" "left step tl" "voice voice voice";gap:10px;padding:10px;font-size:14px}
+  .sr-only{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0}
   .panel{padding:12px;min-height:0}
   h2{font:500 11px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-fog);margin:0 0 10px}
   button{font:500 14px/1 var(--font-body);letter-spacing:-.01em;color:var(--color-pearl);background:transparent;border:1px solid var(--color-fog);
@@ -17,7 +18,6 @@
   button.primary{background:var(--color-chalk);color:var(--color-void);border:0;padding:9px 14px;box-shadow:var(--shadow-key)}
   button.primary:hover{background:#fff}
   button.danger{border-color:var(--color-critical);color:var(--color-critical)}
-  button.on{border-color:var(--color-lavender-beam);color:var(--color-chalk)}
   /* top strip */
   #top{grid-area:top;display:flex;gap:36px;align-items:center;padding:10px 16px;flex-wrap:wrap}
   .brand{display:flex;align-items:center;gap:10px;border:0;color:var(--color-chalk);font:500 18px/1 var(--font-display);letter-spacing:0;margin-right:8px}
@@ -25,19 +25,19 @@
   .stat .n{font:400 32px/1 var(--font-display);letter-spacing:var(--tracking-heading);color:var(--color-chalk);font-variant-numeric:tabular-nums}
   .stat .l{font:500 10px/1 var(--font-body);letter-spacing:.16em;color:var(--color-fog);margin-top:6px}
   #st-state{font-size:26px;letter-spacing:var(--tracking-heading-sm);text-transform:lowercase}
-  .bad{color:var(--color-critical)!important}.ok{color:var(--color-lavender-beam)}
-  #meta{margin-left:auto;display:flex;gap:8px;align-items:center;color:var(--color-fog);font-size:13px}
-  #who{margin-right:6px}
+  .bad{color:var(--color-critical)!important}
+  #meta{margin-left:auto;display:flex;gap:8px;align-items:center;color:var(--color-fog);font-size:13px;flex-wrap:wrap}
+  #who{margin-right:6px}#conn{color:var(--color-critical)}
   /* tray map */
   #left{grid-area:left;overflow:auto}
   #wells{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
-  .well{aspect-ratio:1;background:var(--color-void);border:1px solid var(--color-slate);border-radius:var(--radius-sm);font:500 9px/1.15 var(--font-body);color:var(--color-ash);padding:3px;white-space:pre}
+  .well{aspect-ratio:1;background:var(--color-void);border:1px solid var(--color-slate);border-radius:var(--radius-sm);font:500 10px/1.15 var(--font-body);color:var(--color-fog);padding:3px;white-space:pre;overflow:hidden}
   .well.filled{background:var(--color-slate);border-color:var(--color-lavender-beam);color:var(--color-chalk)}
-  .well.spare{opacity:.4}
+  .well.spare{opacity:.5}
   .well.pulse{animation:pulse 1s ease-out 1;border-color:var(--color-lavender-beam);box-shadow:0 0 0 2px var(--color-lavender-beam)}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(171,143,241,.9)}100%{box-shadow:0 0 0 12px rgba(171,143,241,0)}}
-  .legend{font-size:12px;color:var(--color-ash);margin-top:10px;line-height:1.4}
-  #parts-out{margin-top:10px;font-size:12px;color:var(--color-fog)}
+  .legend{font-size:12px;color:var(--color-fog);margin-top:10px;line-height:1.4}
+  #parts-out{margin-top:10px;font-size:12px;color:var(--color-pearl)}
   /* feed */
   #feedwrap{grid-area:feed;position:relative;overflow:hidden;padding:0;background:var(--color-void);display:flex;align-items:center;justify-content:center}
   #feed,#cam{max-width:100%;max-height:100%;display:block}
@@ -45,7 +45,7 @@
   #banner{position:absolute;left:12px;right:12px;top:12px;padding:10px 14px;border-radius:var(--radius-sm);background:rgba(13,13,18,.94);
     border:1px solid var(--color-critical);display:none;font-size:14px;color:var(--color-chalk);box-shadow:var(--shadow-float)}
   #banner.warn{border-color:var(--color-lavender-beam)}
-  #banner .acts{margin-top:8px;display:flex;gap:6px}
+  #banner .acts{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
   #review{position:absolute;left:12px;bottom:12px;background:rgba(13,13,18,.94);border:1px solid var(--color-lavender-beam);padding:8px 12px;border-radius:var(--radius-sm);display:none;color:var(--color-chalk);font-size:13px}
   /* step card */
   #step{grid-area:step;display:flex;flex-direction:column;justify-content:center;padding:20px}
@@ -58,7 +58,7 @@
   #tlist{overflow:auto;flex:1;font-size:13px}
   .ev{display:flex;gap:10px;padding:5px 8px;border-bottom:1px solid var(--line);cursor:pointer;border-left:2px solid transparent;color:var(--color-pearl)}
   .ev:hover{background:var(--color-slate)}.ev.sel{background:var(--color-slate);border-left-color:var(--color-lavender-beam)}
-  .ev .t{color:var(--color-ash);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ev .t{color:var(--color-fog);font-variant-numeric:tabular-nums;white-space:nowrap}
   .ev.exception{border-left-color:var(--color-lavender-beam)}.ev.exception .x{color:var(--color-chalk)}
   .ev.exception.critical{border-left-color:var(--color-critical)}.ev.exception.critical .x{color:var(--color-critical)}
   .ev.resolved .x{color:var(--color-fog)}.ev.lost{border-left-color:var(--color-critical)}.ev.lost .x{color:var(--color-chalk)}
@@ -70,56 +70,125 @@
   details{font-size:13px;color:var(--color-fog)}details[open]{width:100%}.manual{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   /* modal */
   #modal{position:fixed;inset:0;background:rgba(8,8,10,.78);display:flex;align-items:center;justify-content:center;z-index:10}
+  #modal[hidden]{display:none}
   #mcard{background:var(--color-graphite);border:1px solid var(--line-strong);border-radius:var(--radius-lg);padding:var(--card-pad);width:min(540px,92vw);max-height:90vh;overflow:auto;box-shadow:var(--shadow-float)}
   #mcard.glow{background:radial-gradient(ellipse 90% 60% at 50% 130%,rgba(142,108,228,.45),transparent 70%),var(--color-graphite)}
   #mcard h2{margin-bottom:14px}
   #mcard label{display:block;margin:12px 0 4px;color:var(--color-fog);font-size:12px}
   #mcard input,#mcard select,#mcard textarea{width:100%}
+  [aria-invalid="true"]{border-color:var(--color-critical)!important}
   .row{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}.reasons li{color:var(--color-critical);margin:4px 0}
   .bigstatus{font:400 var(--text-heading-lg)/1 var(--font-display);letter-spacing:var(--tracking-heading-lg);color:var(--color-chalk);margin:4px 0 12px}
+  @media(pointer:coarse){button,input,select{min-height:44px}}
   @media(max-width:900px){html,body{height:auto}body{grid-template-columns:1fr;grid-template-rows:none;grid-template-areas:"top" "feed" "step" "left" "tl" "voice"}
-    #feedwrap{min-height:300px}#step{min-height:120px}#tl{height:240px}#left{overflow:visible}#top{gap:22px}#meta{margin-left:0;flex-wrap:wrap}}
+    #feedwrap{min-height:300px}#step{min-height:120px}#tl{height:240px}#left{overflow:visible}#top{gap:22px}#meta{margin-left:0}}
 </style>
 </head>
 <body>
-<div id="top" class="panel">
-  <a class="brand" href="/" title="Cairn"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#aeaac0" stroke-width="1.3"><rect x="2" y="15" width="18" height="5" rx="2.5"/><rect x="5" y="9" width="12" height="5" rx="2.5"/><rect x="8" y="3" width="6" height="5" rx="2.5"/></svg>Cairn</a>
+<h1 class="sr-only">Cairn bench: live repair view</h1>
+<header id="top" class="panel">
+  <a class="brand" href="/" title="Cairn home"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#aeaac0" stroke-width="1.3" aria-hidden="true"><rect x="2" y="15" width="18" height="5" rx="2.5"/><rect x="5" y="9" width="12" height="5" rx="2.5"/><rect x="8" y="3" width="6" height="5" rx="2.5"/></svg>Cairn</a>
   <div class="stat"><div class="n" id="st-removed">0</div><div class="l">REMOVED</div></div>
   <div class="stat"><div class="n" id="st-acc">0</div><div class="l">ACCOUNTED</div></div>
   <div class="stat"><div class="n" id="st-miss">0</div><div class="l">MISSING</div></div>
   <div class="stat"><div class="n" id="st-state">sealed</div><div class="l">STATE</div></div>
-  <div id="meta"><span id="who"></span><button id="btn-cam">Camera</button><button id="btn-base" style="display:none">Baseline</button>
-    <button id="btn-sound" title="Spoken alerts">Sound on</button><button id="btn-close" class="primary">Close job</button><button id="btn-new">Jobs</button></div>
-</div>
-<div id="left" class="panel"><h2>Tray</h2><div id="wells"></div>
-  <div class="legend">Filled = a removed part is in that well. The correct well pulses once when a part is misplaced.</div>
-  <div id="parts-out"></div></div>
-<div id="feedwrap" class="panel">
-  <img id="feed" alt="Bench feed"><video id="cam" playsinline muted></video><canvas id="ov"></canvas>
-  <div id="banner"></div><div id="review"></div>
-</div>
-<div id="step" class="panel"><h2>Next step</h2><div id="stepbody"></div></div>
-<div id="tl" class="panel"><h2>Timeline</h2><div id="tlist"></div></div>
-<div id="voice" class="panel">
-  <button id="mic">Hold to talk</button><label style="color:var(--dim)"><input type="checkbox" id="open"> open mic</label>
-  <input id="say" placeholder='Say or type: "what&#39;s next?"'><div id="reply"></div>
+  <div id="meta"><span id="who"></span><span id="conn" role="status"></span><button id="btn-cam">Camera</button><button id="btn-base" style="display:none">Baseline</button>
+    <button id="btn-token" style="display:none">Enter token</button><button id="btn-sound" aria-pressed="true" title="Spoken alerts">Sound on</button><button id="btn-close" class="primary">Close job</button><button id="btn-new">Jobs</button></div>
+</header>
+<aside id="left" class="panel" aria-label="Tray map"><h2>Tray</h2><div id="wells" role="list"></div>
+  <p class="legend">Filled means a removed part is in that well. The correct well pulses once when a part is misplaced.</p>
+  <div id="parts-out" aria-live="polite"></div></aside>
+<main id="feedwrap" class="panel" aria-label="Bench feed">
+  <img id="feed" alt="Overhead view of the bench with outlines on every tracked part"><video id="cam" playsinline muted aria-label="Live camera"></video><canvas id="ov" aria-hidden="true"></canvas>
+  <div id="banner" role="alert"></div><div id="review"></div>
+</main>
+<section id="step" class="panel" aria-label="Next step"><h2>Next step</h2><div id="stepbody" aria-live="polite"></div></section>
+<section id="tl" class="panel" aria-label="Timeline"><h2>Timeline</h2><div id="tlist" role="list"></div></section>
+<footer id="voice" class="panel">
+  <button id="mic" aria-describedby="mic-help">Hold to talk</button><span id="mic-help" class="sr-only">Hold this button or the space bar and speak. Questions never change the record.</span>
+  <label><input type="checkbox" id="open"> open mic</label>
+  <input id="say" aria-label="Type or say a command" placeholder='Say or type: "what&#39;s next?"' autocomplete="off"><div id="reply" aria-live="polite"></div>
   <details><summary>Manual input (no camera)</summary><div class="manual" id="manual"></div></details>
-</div>
-<div id="modal" style="display:none"><div class="card" id="mcard"></div></div>
+</footer>
+<div id="modal" role="dialog" aria-modal="true" aria-labelledby="mtitle" hidden><div id="mcard"></div></div>
 
 <script>
 const $ = id => document.getElementById(id);
-let sid = localStorage.getItem('cairn.sid') || null, token = localStorage.getItem('cairn.token') || '';
-let review = null, lastSnap = null, tlCount = -1, seenAlert = '', pulseWell = null, pulseUntil = 0, sound = true;
-let camStream = null, camOn = false, canSend = true;
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+};
+let sid = store.get('cairn.sid') || null, token = store.get('cairn.token') || '';
+let review = null, lastSnap = null, tlCount = -1, pulseWell = null, pulseUntil = 0, shownFrame = null, sound = true;
+let camStream = null, camOn = false, canSend = true, busy = false, playing = false, primed = false;
+const seenAlerts = new Set();
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const hhmmss = ts => new Date(ts * 1000).toLocaleTimeString([], {hour12: false});
+const notify = msg => { $('reply').textContent = msg; };
+const friendly = e => { try { const d = JSON.parse(e.message); return typeof d === 'string' ? d : (d.error || d.detail || e.message); } catch (x) { return e.message; } };
+
+/* ---------- dialogs (in-page: embedded browsers have no native input dialog) ---------- */
+let lastFocus = null, onCancel = null;
+function modal(html, cls) {
+  lastFocus = document.activeElement; onCancel = null;
+  $('mcard').innerHTML = html; $('mcard').className = cls || ''; $('modal').hidden = false;
+  const f = $('mcard').querySelector('input:not([type=hidden]),textarea,select,button'); if (f) f.focus();
+}
+function hide() { $('modal').hidden = true; if (lastFocus && lastFocus.focus && document.contains(lastFocus)) lastFocus.focus(); }
+function dismiss() { const c = onCancel; onCancel = null; hide(); if (c) c(); }
+addEventListener('keydown', e => {
+  if ($('modal').hidden) return;
+  if (e.key === 'Escape') { e.preventDefault(); dismiss(); return; }
+  if (e.key === 'Tab') {  // keep focus inside the dialog
+    const f = [...$('mcard').querySelectorAll('button,input,select,textarea')].filter(x => !x.disabled); if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
+$('modal').addEventListener('mousedown', e => { if (e.target === $('modal')) dismiss(); });
+function askText(title, label) {
+  return new Promise(res => {
+    modal(`<h2 id="mtitle">${esc(title)}</h2><label for="ptxt">${esc(label)}</label><textarea id="ptxt" rows="3"></textarea>
+      <div class="row"><button class="primary" id="pok">Save</button><button id="pno">Cancel</button></div>`);
+    onCancel = () => res(null);
+    $('pok').onclick = () => { const v = $('ptxt').value.trim(); if (!v) { $('ptxt').setAttribute('aria-invalid', 'true'); $('ptxt').focus(); return; } onCancel = null; hide(); res(v); };
+    $('pno').onclick = dismiss;
+  });
+}
+let tokenAsk = null, tokenCancelledAt = 0;
+function needToken() {  // one dialog no matter how many requests are waiting
+  if (!tokenAsk) tokenAsk = new Promise(res => {
+    modal(`<h2 id="mtitle">API token</h2><label for="ptok">This Cairn server needs a token.</label><input id="ptok" type="password" autocomplete="off">
+      <div class="row"><button class="primary" id="tok-ok">Continue</button><button id="tok-no">Cancel</button></div>`);
+    onCancel = () => { tokenCancelledAt = Date.now(); res(''); };
+    $('tok-ok').onclick = () => { const v = $('ptok').value.trim(); if (!v) { $('ptok').setAttribute('aria-invalid', 'true'); return; } onCancel = null; hide(); res(v); };
+    $('tok-no').onclick = dismiss;
+  }).finally(() => { tokenAsk = null; });
+  return tokenAsk;
+}
 
 /* ---------- api ---------- */
-async function api(path, opts = {}, raw = false) {
+async function api(path, opts = {}, raw = false, retried = false) {
   const headers = {...(opts.headers || {})};
   if (token) headers.Authorization = 'Bearer ' + token;
-  if (opts.json !== undefined) { headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(opts.json); }
-  const r = await fetch(path, {...opts, headers});
-  if (r.status === 401) { token = prompt('API token for this Cairn server:') || ''; localStorage.setItem('cairn.token', token); return api(path, opts, raw); }
+  const o = {...opts, headers};
+  if (opts.json !== undefined) { headers['Content-Type'] = 'application/json'; o.body = JSON.stringify(opts.json); delete o.json; }
+  // A hung request must never freeze the page: every call has a deadline (uploads get longer).
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), opts.timeout || (o.body instanceof Blob ? 30000 : 8000));
+  o.signal = ctl.signal; delete o.timeout;
+  let r;
+  try { r = await fetch(path, o); }
+  catch (e) { throw Object.assign(new Error(e.name === 'AbortError' ? 'The server did not answer in time.' : 'Cannot reach the server.'), {status: 0}); }
+  finally { clearTimeout(timer); }
+  if (r.status === 401) {
+    if (!retried && Date.now() - tokenCancelledAt < 30000) throw Object.assign(new Error('Not authorised: a valid API token is required.'), {status: 401});  // they said no a moment ago
+    if (retried) { token = ''; store.del('cairn.token'); }
+    const t = retried ? '' : await needToken();
+    if (!t) throw Object.assign(new Error('Not authorised: a valid API token is required.'), {status: 401});
+    token = t; store.set('cairn.token', t); return api(path, opts, raw, true);
+  }
   if (raw) return r;
   const body = await r.json().catch(() => ({}));
   if (!r.ok) { const e = new Error(JSON.stringify(body.detail || body)); e.status = r.status; e.detail = body.detail; throw e; }
@@ -129,93 +198,138 @@ async function setImage(el, path) {  // images need the bearer header too, so fe
   const r = await api(path, {}, true); if (!r.ok) return;
   const url = URL.createObjectURL(await r.blob()); const old = el.src; el.src = url; if (old.startsWith('blob:')) URL.revokeObjectURL(old);
 }
+const post = (p, json) => api(`/sessions/${sid}/${p}`, {method: 'POST', json});
+async function act(fn) { try { await fn(); } catch (e) { notify(friendly(e)); } poll(); }
 
 /* ---------- rendering ---------- */
-const hhmmss = ts => new Date(ts * 1000).toLocaleTimeString([], {hour12: false});
-function render(s, alerts) {
-  lastSnap = s;
-  const t = s.top;
-  $('st-removed').textContent = t.removed; $('st-acc').textContent = t.accounted;
-  const m = $('st-miss'); m.textContent = t.missing; m.className = 'n ' + (t.missing ? 'bad' : '');
-  $('st-state').textContent = t.state;
-  $('who').textContent = (s.job_number ? 'Job ' + s.job_number + ' · ' : '') + (s.closed ? s.closed.replace('_', ' ') : '');
-  // tray map
-  const pulsing = Date.now() < pulseUntil ? pulseWell : null;
-  $('wells').innerHTML = '';
-  for (const w of s.wells) {
-    const d = document.createElement('div');
-    d.className = 'well' + (w.filled ? ' filled' : '') + (w.tray ? '' : ' spare') + (pulsing === w.n ? ' pulse' : '');
-    d.title = w.part ? `${w.part} · ${w.cls}` : (w.cls ? `well ${w.n}: ${w.cls}` : 'spare well');
-    d.textContent = String(w.n).padStart(2, '0') + (w.part ? '\n' + w.part : '');
-    d.style.whiteSpace = 'pre';
-    $('wells').appendChild(d);
+function buildWells() {
+  const w = $('wells'); w.innerHTML = '';
+  for (let n = 1; n <= 24; n++) { const d = document.createElement('div'); d.className = 'well'; d.setAttribute('role', 'listitem'); w.appendChild(d); }
+}
+buildWells();
+function updateWells(list) {  // update in place: rebuilding would restart the pulse animation
+  for (const w of list) {
+    const d = $('wells').children[w.n - 1]; if (!d) continue;
+    const cls = 'well' + (w.filled ? ' filled' : '') + (w.tray ? '' : ' spare');
+    if (d.dataset.cls !== cls) { const p = d.classList.contains('pulse'); d.className = cls + (p ? ' pulse' : ''); d.dataset.cls = cls; }
+    const txt = String(w.n).padStart(2, '0') + (w.part ? '\n' + w.part : '');
+    if (d.textContent !== txt) d.textContent = txt;
+    d.title = w.part ? `Well ${w.n}: ${w.part}, ${w.cls}` : (w.cls ? `Well ${w.n}: empty, for ${w.cls}` : `Well ${w.n}: spare`);
+    d.setAttribute('aria-label', d.title);
   }
+}
+function pulse(n) {
+  const d = $('wells').children[n - 1]; if (!d) return;
+  pulseWell = n; pulseUntil = Date.now() + 2500;
+  d.classList.remove('pulse'); void d.offsetWidth; d.classList.add('pulse'); setTimeout(() => d.classList.remove('pulse'), 1100);
+}
+let stepKey = '', bannerKey = '';
+function render(s) {
+  lastSnap = s; const t = s.top;
+  $('st-removed').textContent = t.removed; $('st-acc').textContent = t.accounted;
+  const m = $('st-miss'); m.textContent = t.missing; m.className = 'n' + (t.missing ? ' bad' : '');
+  $('st-state').textContent = t.state;
+  $('who').textContent = [s.job_number ? 'Job ' + s.job_number : '', s.closed ? s.closed.replace('_', ' ') : ''].filter(Boolean).join(' · ');
+  updateWells(s.wells);
   const out = Object.values(s.parts).filter(p => p.state === 'lost' || p.state === 'in_transit').map(p => `${p.code} ${p.state.replace('_', ' ')}`);
   $('parts-out').textContent = out.length ? 'Not in a tray: ' + out.join(', ') : '';
-  // next step card
   const open = s.exceptions.filter(x => !x.resolved);
   const safety = open.find(x => x.type === 'safety_violation' || x.type === 'hazard');
-  const card = $('step'), body = $('stepbody'); body.innerHTML = '';
-  card.className = 'panel' + (safety ? ' red' : '');
-  const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; body.appendChild(d); };
-  if (safety) add('stop', safety.type === 'hazard' ? 'Stop all work. ' + safety.detail : 'Stop. ' + safety.detail.replace(/^[a-z_0-9]+: /, ''));
-  if (s.closed) add('a', s.closed === 'verified' ? 'Job closed: verified' : 'Job closed with exceptions');
-  else if (s.next) { add('a', s.next.action); add('w', s.next.why); }
-  else add('a', 'Run the boot test, then close the job.');
-  // banner: the most serious open exception
-  const b = $('banner'); const top = open.sort((a, b2) => (b2.severity === 'critical') - (a.severity === 'critical') || b2.ts - a.ts)[0];
-  if (top && review === null) {
-    b.style.display = 'block'; b.className = top.severity === 'critical' ? '' : 'warn'; b.innerHTML = '';
-    const msg = document.createElement('div'); msg.textContent = top.detail; b.appendChild(msg);
-    const acts = document.createElement('div'); acts.className = 'acts';
-    const ack = document.createElement('button'); ack.textContent = 'Acknowledge'; ack.onclick = () => resolveExc(top.id); acts.appendChild(ack);
-    if (top.type === 'missing_part' && top.part_id) { const r = document.createElement('button'); r.textContent = 'Retire part (cannot find)'; r.onclick = () => retire(top.part_id); acts.appendChild(r); }
-    b.appendChild(acts);
-  } else b.style.display = 'none';
-  // alerts -> pulse + voice
-  for (const a of (alerts || [])) {
-    const key = a.ts + a.message; if (key <= seenAlert) continue; seenAlert = key;
-    if (a.well) { pulseWell = a.well; pulseUntil = Date.now() + 2500; }
-    if (a.severity !== 'info') speak(a.message);
+  const key = JSON.stringify([safety && safety.id, s.closed, s.next && s.next.id, !s.next]);
+  if (key !== stepKey) {
+    stepKey = key; const body = $('stepbody'); body.innerHTML = '';
+    const card = $('step'); card.className = 'panel' + (safety ? ' red' : '');
+    const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; body.appendChild(d); };
+    if (safety) add('stop', safety.type === 'hazard' ? 'Stop all work. ' + safety.detail : 'Stop. ' + safety.detail.replace(/^[a-z_0-9]+: /, ''));
+    if (s.closed) add('a', s.closed === 'verified' ? 'Job closed: verified' : 'Job closed with exceptions');
+    else if (s.next) { add('a', s.next.action); add('w', s.next.why); }
+    else add('a', 'Run the boot test, then close the job.');
+  }
+  const top = [...open].sort((a, b) => (b.severity === 'critical') - (a.severity === 'critical') || b.ts - a.ts)[0];
+  const b = $('banner'), bk = review === null && top ? top.id + top.severity : '';
+  if (bk !== bannerKey) {
+    bannerKey = bk;
+    if (!bk) b.style.display = 'none';
+    else {
+      b.style.display = 'block'; b.className = top.severity === 'critical' ? '' : 'warn'; b.innerHTML = '';
+      const msg = document.createElement('div'); msg.textContent = top.detail; b.appendChild(msg);
+      const acts = document.createElement('div'); acts.className = 'acts';
+      const ack = document.createElement('button'); ack.textContent = 'Acknowledge'; ack.onclick = () => resolveExc(top.id); acts.appendChild(ack);
+      if (top.type === 'missing_part' && top.part_id) { const r = document.createElement('button'); r.textContent = 'Retire part (cannot find)'; r.onclick = () => retire(top.part_id); acts.appendChild(r); }
+      b.appendChild(acts);
+    }
   }
   buildManual(s);
   if (camOn) drawOverlay(s);
+}
+function handleAlerts(alerts) {
+  for (const a of (alerts || [])) {
+    const key = a.ts + '|' + a.kind + '|' + a.message; if (seenAlerts.has(key)) continue; seenAlerts.add(key);
+    if (!primed) continue;  // alerts that predate this page load are history, not news
+    if (a.well) pulse(a.well);
+    if (a.severity !== 'info') speak(a.message);
+  }
+  primed = true;
 }
 function renderTimeline(entries, selSeq) {
   const el = $('tlist'); const stick = el.scrollTop + el.clientHeight >= el.scrollHeight - 30; el.innerHTML = '';
   for (const e of entries) {
     const d = document.createElement('div'); d.className = `ev ${e.kind} ${e.severity}` + (e.seq === selSeq ? ' sel' : '');
+    d.setAttribute('role', 'listitem'); d.tabIndex = 0; d.title = 'Show this moment';
     d.innerHTML = '<span class="t"></span><span class="x"></span>'; d.children[0].textContent = hhmmss(e.ts); d.children[1].textContent = e.text;
-    d.onclick = () => openReview(e.seq); el.appendChild(d);
+    d.onclick = () => openReview(e.seq);
+    d.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openReview(e.seq); } };
+    el.appendChild(d);
   }
   if (stick || review === null) el.scrollTop = el.scrollHeight;
 }
 
 /* ---------- polling ---------- */
+const setConn = ok => { $('conn').textContent = ok ? '' : 'Reconnecting…'; };
+async function refreshFeed(frameId) {
+  if (camOn) return;
+  const live = Date.now() < pulseUntil;
+  const key = (frameId || 'none') + '|' + (live ? pulseWell : '');
+  if (key === shownFrame) return; shownFrame = key;
+  await setImage($('feed'), `/sessions/${sid}/frames/latest.png?${live ? 'well=' + pulseWell + '&' : ''}f=${encodeURIComponent(frameId || 'none')}`);
+}
 async function poll() {
-  if (!sid || review !== null) return;
+  if (!sid || review !== null || busy || document.hidden) return;
+  busy = true;
   try {
     const d = await api(`/sessions/${sid}`);
-    render(d.snapshot, d.recent_alerts);
-    if (!camOn) { const w = Date.now() < pulseUntil ? `?well=${pulseWell}&` : '?'; await setImage($('feed'), `/sessions/${sid}/frames/latest.png${w}t=${Date.now()}`); }
-    if (d.snapshot.events !== tlCount) { tlCount = d.snapshot.events; const t = await api(`/sessions/${sid}/timeline`); renderTimeline(t.entries); }
-  } catch (e) { if (e.status === 404 && /session/.test(String(e.message))) { sid = null; localStorage.removeItem('cairn.sid'); showJobs(); } }
+    if (review !== null) return;  // the user opened a moment while this was in flight
+    setConn(true); $('btn-token').style.display = 'none'; render(d.snapshot); handleAlerts(d.recent_alerts); await refreshFeed(d.latest_frame);
+    if (d.snapshot.events !== tlCount) {
+      tlCount = d.snapshot.events; const t = await api(`/sessions/${sid}/timeline`); if (review === null) renderTimeline(t.entries);
+    }
+  } catch (e) {
+    if (e.status === 404) { sid = null; store.del('cairn.sid'); showJobs(); }
+    else if (e.status === 401) $('btn-token').style.display = '';
+    else setConn(false);
+  } finally { busy = false; }
 }
 setInterval(poll, 800);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 
 /* ---------- review any moment ---------- */
 async function openReview(seq) {
-  review = seq;
-  const d = await api(`/sessions/${sid}/at/${seq}`);
-  render(d.snapshot, []); $('banner').style.display = 'none';
-  if (d.frame_id) await setImage($('feed'), `/sessions/${sid}/frames/${encodeURIComponent(d.frame_id)}.png`);
-  $('feed').style.display = 'block'; $('cam').style.display = 'none'; $('ov').style.display = 'none';
-  const r = $('review'); r.style.display = 'block'; r.innerHTML = `Reviewing event #${seq} at ${hhmmss(d.ts)} &nbsp;`;
-  const back = document.createElement('button'); back.textContent = 'Back to live'; back.onclick = backToLive; r.appendChild(back);
-  const t = await api(`/sessions/${sid}/timeline`); renderTimeline(t.entries, seq);
+  try {
+    const d = await api(`/sessions/${sid}/at/${seq}`);
+    review = seq; shownFrame = null; bannerKey = '';
+    render(d.snapshot); $('banner').style.display = 'none';
+    if (d.frame_id) await setImage($('feed'), `/sessions/${sid}/frames/${encodeURIComponent(d.frame_id)}.png`);
+    $('feed').style.display = 'block'; $('cam').style.display = 'none'; $('ov').style.display = 'none';
+    const r = $('review'); r.style.display = 'block'; r.textContent = `Reviewing event #${seq} at ${hhmmss(d.ts)} `;
+    const back = document.createElement('button'); back.textContent = 'Back to live'; back.onclick = backToLive; r.appendChild(back);
+    const t = await api(`/sessions/${sid}/timeline`); renderTimeline(t.entries, seq);
+  } catch (e) { notify(friendly(e)); }
 }
-function backToLive() { review = null; $('review').style.display = 'none'; if (camOn) { $('feed').style.display = 'none'; $('cam').style.display = 'block'; $('ov').style.display = 'block'; } tlCount = -1; poll(); }
-let playing = false;
+function backToLive() {
+  playing = false; review = null; shownFrame = null; bannerKey = ''; stepKey = ''; $('review').style.display = 'none';
+  if (camOn) { $('feed').style.display = 'none'; $('cam').style.display = 'block'; $('ov').style.display = 'block'; }
+  tlCount = -1; poll();
+}
 async function playAll() {
   const t = await api(`/sessions/${sid}/timeline`); playing = true;
   for (const e of t.entries) { if (!playing) break; await openReview(e.seq); await new Promise(r => setTimeout(r, 450)); }
@@ -224,65 +338,79 @@ async function playAll() {
 
 /* ---------- voice ---------- */
 function speak(text) { if (!sound || !('speechSynthesis' in window)) return; speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(text)); }
-$('btn-sound').onclick = () => { sound = !sound; $('btn-sound').textContent = sound ? 'Sound on' : 'Sound off'; if (!sound) speechSynthesis.cancel(); };
+$('btn-sound').onclick = () => { sound = !sound; $('btn-sound').textContent = sound ? 'Sound on' : 'Sound off'; $('btn-sound').setAttribute('aria-pressed', sound); if (!sound && 'speechSynthesis' in window) speechSynthesis.cancel(); };
+// Only statements change the record. A question never does, however it is phrased.
+const QUESTION = /\?\s*$|^\s*(what|what's|whats|which|where|when|why|how|is|are|was|do|does|did|should|can|could|will|would|am|has|have)\b/i;
+function recordFromSpeech(text) {
+  const u = text.toLowerCase().trim(); if (QUESTION.test(u)) return null;
+  if (/\bbattery\b.*\b(reconnected|plugged back|back in|connected again)\b/.test(u)) return ['steps', {step_id: 'r_t04'}];
+  if (/\bbattery\b.*\b(disconnected|unplugged|removed|is out|s out)\b|\b(disconnected|unplugged)\b.*\bbattery\b/.test(u)) return ['steps', {step_id: 't04'}];
+  if (/\besd\b.*\b(on|wearing|attached|fitted)\b|\b(wearing|put on|have on|got)\b.*\besd\b/.test(u)) return ['steps', {step_id: 't01'}];
+  if (/\bboot\b.*\b(passed|passes|ok|works|worked|good)\b/.test(u)) return ['boot-test', {passed: true}];
+  if (/\b(swelling|swollen|smoke|smoking|burning|overheating)\b/.test(u)) return ['hazard', {kind: /swel/.test(u) ? 'swelling' : /smok/.test(u) ? 'smoke' : 'heat'}];
+  return null;
+}
 async function say(text) {
   if (!sid || !text.trim()) return; $('say').value = '';
-  const u = text.toLowerCase(); const ts = null;
-  try {   // events the camera cannot see are logged by voice
-    if (/\besd\b/.test(u)) await post('steps', {step_id: 't01'});
-    else if (/battery.*(reconnect|back in|plugged in)/.test(u)) await post('steps', {step_id: 'r_t04'});
-    else if (/battery.*(disconnect|unplug|out)/.test(u)) await post('steps', {step_id: 't04'});
-    else if (/boot.*(pass|ok|work)/.test(u)) await post('boot-test', {passed: true});
-    else if (/(swell|smoke|hot|burning)/.test(u)) await post('hazard', {kind: /swell/.test(u) ? 'swelling' : /smoke/.test(u) ? 'smoke' : 'heat'});
-  } catch (e) {}
-  const r = await post('ask', {utterance: text});
-  $('reply').textContent = r.text; speak(r.text); poll();
+  try {
+    const rec = recordFromSpeech(text);
+    if (rec) { const r = await post(...rec); const a = (r.alerts || []).map(x => x.message).join(' '); notify(a || 'Logged.'); if (a) speak(a); poll(); return; }
+    const r = await post('ask', {utterance: text}); notify(r.text); speak(r.text);
+  } catch (e) { notify(friendly(e)); }
+  poll();
 }
-const post = (p, json) => api(`/sessions/${sid}/${p}`, {method: 'POST', json});
 $('say').addEventListener('keydown', e => { if (e.key === 'Enter') say(e.target.value); });
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec = null;
+let rec = null, restarts = [];
 function startRec(continuous) {
-  if (!SR) { $('reply').textContent = 'Voice input needs a Chromium browser. Type instead.'; return; }
+  if (!SR) { notify('Voice input needs a Chromium browser. Type instead.'); $('open').checked = false; return; }
   rec = new SR(); rec.continuous = continuous; rec.interimResults = false; rec.lang = 'en-US';
   rec.onresult = ev => { for (let i = ev.resultIndex; i < ev.results.length; i++) if (ev.results[i].isFinal) say(ev.results[i][0].transcript); };
-  rec.onend = () => { $('mic').classList.remove('live'); if ($('open').checked) startRec(true); };
-  rec.start(); $('mic').classList.add('live');
+  rec.onerror = ev => { if (['not-allowed', 'service-not-allowed', 'audio-capture'].includes(ev.error)) { $('open').checked = false; notify('Microphone unavailable (' + ev.error + '). Type instead.'); } };
+  rec.onend = () => {
+    $('mic').classList.remove('live');
+    const now = Date.now(); restarts = restarts.filter(t => now - t < 4000); restarts.push(now);
+    if ($('open').checked) { if (restarts.length > 5) { $('open').checked = false; notify('Open mic stopped: it kept restarting.'); } else startRec(true); }
+  };
+  try { rec.start(); $('mic').classList.add('live'); } catch (e) { notify('Could not start the microphone.'); }
 }
 $('mic').onpointerdown = () => { if (!$('open').checked) startRec(false); };
 $('mic').onpointerup = () => { if (rec && !$('open').checked) rec.stop(); };
 $('open').onchange = e => { if (e.target.checked) startRec(true); else if (rec) rec.stop(); };
-addEventListener('keydown', e => { if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') { e.preventDefault(); if (!$('open').checked) startRec(false); } });
-addEventListener('keyup', e => { if (e.code === 'Space' && rec && !$('open').checked) rec.stop(); });
+const typing = () => /^(INPUT|TEXTAREA|SELECT|BUTTON|SUMMARY|A)$/.test(document.activeElement.tagName) || !$('modal').hidden;
+addEventListener('keydown', e => { if (e.code === 'Space' && !e.repeat && !typing()) { e.preventDefault(); if (!$('open').checked) startRec(false); } });
+addEventListener('keyup', e => { if (e.code === 'Space' && rec && !$('open').checked && !typing()) rec.stop(); });
 
 /* ---------- manual input fallback ---------- */
 function buildManual(s) {
   const m = $('manual'); if (m.dataset.built) return; m.dataset.built = '1';
-  const btn = (label, fn) => { const b = document.createElement('button'); b.textContent = label; b.onclick = fn; m.appendChild(b); };
-  btn('ESD strap on', () => post('steps', {step_id: 't01'}).then(poll));
-  btn('Battery disconnected', () => post('steps', {step_id: 't04'}).then(poll));
-  btn('Battery reconnected', () => post('steps', {step_id: 'r_t04'}).then(poll));
-  btn('Boot test passed', () => post('boot-test', {passed: true}).then(poll));
-  btn('Report swelling', () => post('hazard', {kind: 'swelling'}).then(poll));
+  const btn = (label, fn) => { const b = document.createElement('button'); b.textContent = label; b.onclick = () => act(fn); m.appendChild(b); };
+  btn('ESD strap on', () => post('steps', {step_id: 't01'}));
+  btn('Battery disconnected', () => post('steps', {step_id: 't04'}));
+  btn('Battery reconnected', () => post('steps', {step_id: 'r_t04'}));
+  btn('Boot test passed', () => post('boot-test', {passed: true}));
+  btn('Report swelling', () => post('hazard', {kind: 'swelling'}));
   const ps = document.createElement('select'), zs = document.createElement('select');
+  ps.setAttribute('aria-label', 'Part'); zs.setAttribute('aria-label', 'Move to');
   for (const [id, p] of Object.entries(s.parts)) ps.add(new Option(`${p.code} ${p.label}`, id));
   for (const z of ['hand', 'device', 'bench']) zs.add(new Option(z, z));
   for (const w of s.wells.filter(x => x.tray)) zs.add(new Option('well ' + String(w.n).padStart(2, '0'), 'well:' + w.n + ':' + w.tray));
   m.append(ps, zs);
   btn('Move part', async () => {
     let zone = zs.value, well = null; if (zone.startsWith('well:')) { const [, n, tray] = zone.split(':'); zone = tray; well = +n; }
-    const r = await post('taps', {part_id: ps.value, zone, well}); r.alerts.forEach(a => { $('reply').textContent = a.message; speak(a.message); }); poll();
+    const r = await post('taps', {part_id: ps.value, zone, well});
+    r.alerts.forEach(a => { notify(a.message); speak(a.message); if (a.well) pulse(a.well); });
   });
 }
-async function resolveExc(id) { const note = prompt('Technician note (kept on the passport):'); if (!note) return; await post(`exceptions/${id}/resolve`, {note}); poll(); }
-async function retire(pid) { const reason = prompt('Why is it being retired (e.g. lost, replaced)?'); if (!reason) return; await post(`parts/${pid}/retire`, {reason}); poll(); }
+async function resolveExc(id) { const note = await askText('Acknowledge', 'Technician note (kept on the passport):'); if (note) act(() => post(`exceptions/${id}/resolve`, {note})); }
+async function retire(pid) { const reason = await askText('Retire part', 'Why is it being retired (lost, replaced...)?'); if (reason) act(() => post(`parts/${pid}/retire`, {reason})); }
 
 /* ---------- camera ---------- */
 const prev = {px: null, sent: 0};
 async function toggleCam() {
-  if (camOn) { camStream.getTracks().forEach(t => t.stop()); camOn = false; $('cam').style.display = 'none'; $('ov').style.display = 'none'; $('feed').style.display = 'block'; $('btn-base').style.display = 'none'; return; }
+  if (camOn) { camStream.getTracks().forEach(t => t.stop()); camOn = false; shownFrame = null; $('cam').style.display = 'none'; $('ov').style.display = 'none'; $('feed').style.display = 'block'; $('btn-base').style.display = 'none'; return; }
   try { camStream = await navigator.mediaDevices.getUserMedia({video: {width: 1280, height: 720}, audio: false}); }
-  catch (e) { alert('Camera unavailable: ' + e.message); return; }
+  catch (e) { notify('Camera unavailable: ' + (e.message || e.name)); return; }
   const v = $('cam'); v.srcObject = camStream; await v.play(); camOn = true;
   $('feed').style.display = 'none'; v.style.display = 'block'; $('ov').style.display = 'block'; $('btn-base').style.display = '';
   capLoop();
@@ -295,17 +423,19 @@ async function capLoop() {  // event-driven: send a frame only when the scene ch
   const c = document.createElement('canvas'); c.width = 64; c.height = 40; const g = c.getContext('2d', {willReadFrequently: true});
   while (camOn) {
     await new Promise(r => setTimeout(r, 350));
-    if (review !== null || !canSend || !sid) continue;
+    if (review !== null || !canSend || !sid || document.hidden) continue;
     g.drawImage($('cam'), 0, 0, 64, 40); const px = g.getImageData(0, 0, 64, 40).data; let diff = 0;
     if (prev.px) for (let i = 0; i < px.length; i += 4) diff += Math.abs(px[i] - prev.px[i]);
     const changed = !prev.px || diff / (64 * 40) > 3; prev.px = px;
     if (!changed && Date.now() - prev.sent < 4000) continue;
     prev.sent = Date.now();
-    try { const r = await api(`/sessions/${sid}/image`, {method: 'POST', body: await frameBlob(), headers: {'Content-Type': 'image/jpeg'}}, true);
-      if (r.status === 503) { canSend = false; $('reply').textContent = 'Camera preview only: the server has no perception backend (set CAIRN_PERCEPTION=sam).'; }
-      else if (r.status === 502) $('reply').textContent = 'Perception call failed; check the SAM key and network.';
-      else if (r.ok) { const d = await r.json(); (d.alerts || []).forEach(a => { if (a.well) { pulseWell = a.well; pulseUntil = Date.now() + 2500; } if (a.severity !== 'info') speak(a.message); }); }
-    } catch (e) {}
+    try {
+      const r = await api(`/sessions/${sid}/image`, {method: 'POST', body: await frameBlob(), headers: {'Content-Type': 'image/jpeg'}}, true);
+      if (r.status === 503) { canSend = false; notify('Camera preview only: the server has no perception backend (set CAIRN_PERCEPTION=sam).'); }
+      else if (r.status === 502) notify('Perception call failed; check the SAM key and network.');
+      else if (r.status === 413) notify('Frame too large for the server.');
+      else if (r.ok) { const d = await r.json(); handleAlerts(d.alerts); }
+    } catch (e) { /* offline: the next frame retries */ }
   }
 }
 function drawOverlay(s) {
@@ -314,71 +444,93 @@ function drawOverlay(s) {
   ov.style.left = (r.left - wr.left) + 'px'; ov.style.top = (r.top - wr.top) + 'px'; ov.width = r.width; ov.height = r.height;
   const k = r.width / 960, g = ov.getContext('2d'); g.clearRect(0, 0, ov.width, ov.height); g.lineWidth = 1; g.font = '10px system-ui';
   for (const p of Object.values(s.parts)) {
-    if (!p.box || p.state === 'installed' && p.location === 'device' && p.class === 'fastener' && false) continue;
+    if (!p.box) continue;
     const col = p.state === 'lost' ? '#f0707a' : p.location === 'hand' ? '#dad7de' : p.location.startsWith('tray') ? '#ab8ff1' : '#aeaac0';
     g.strokeStyle = col; g.fillStyle = col; const [x0, y0, x1, y1] = p.box.map(n => n * k); g.strokeRect(x0, y0, x1 - x0, y1 - y0);
     const where = p.location.startsWith('tray') && p.well ? 'tray ' + String(p.well).padStart(2, '0') : p.location.replace('_', ' ');
     g.fillText((x1 - x0) > 20 * k || p.location === 'hand' ? `${p.code} · ${p.label} · ${where}` : p.code, x0, Math.max(9, y0 - 3));
   }
 }
+addEventListener('resize', () => { if (camOn && lastSnap) drawOverlay(lastSnap); });
 $('btn-cam').onclick = toggleCam;
-$('btn-base').onclick = async () => { const r = await api(`/sessions/${sid}/baseline`, {method: 'POST', body: await frameBlob(.9), headers: {'Content-Type': 'image/jpeg'}}, true); $('reply').textContent = r.ok ? 'Baseline of the sealed device saved.' : 'Baseline failed.'; };
+$('btn-base').onclick = async () => {
+  try { const r = await api(`/sessions/${sid}/baseline`, {method: 'POST', body: await frameBlob(.9), headers: {'Content-Type': 'image/jpeg'}}, true); notify(r.ok ? 'Baseline of the sealed device saved.' : 'Baseline failed.'); }
+  catch (e) { notify(friendly(e)); }
+};
 
 /* ---------- close job ---------- */
-function modal(html) { $('mcard').innerHTML = html; $('mcard').className = /Job closed/.test(html) ? 'glow' : ''; $('modal').style.display = 'flex'; }
-const hide = () => $('modal').style.display = 'none';
-const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 $('btn-close').onclick = () => closeJob(false);
 async function closeJob(accept, note) {
   if (!sid) return;
+  if (accept && !(note && note.trim())) { const t = $('cnote'); if (t) { t.setAttribute('aria-invalid', 'true'); t.focus(); } return; }
   try {
     const p = await api(`/sessions/${sid}/close`, {method: 'POST', json: {accept_exceptions: !!accept, note}});
-    const b = p.body; modal(`<h2>Job closed</h2><div class="bigstatus"${b.status === 'VERIFIED' ? '' : ' style="color:var(--color-lavender-beam)"'}>${esc(b.status)}</div>
+    const b = p.body; modal(`<h2 id="mtitle">Job closed</h2><div class="bigstatus"${b.status === 'VERIFIED' ? '' : ' style="color:var(--color-lavender-beam)"'}>${esc(b.status)}</div>
       <p>${b.counts.fasteners_accounted}/${b.counts.fasteners_total} fasteners, ${b.counts.extra_parts} extra parts, ${b.exceptions.length} exceptions recorded.</p>
-      <div class="row"><button class="primary" onclick="dl('passport.pdf')">Passport PDF</button><button onclick="dl('passport.html')">HTML</button><button onclick="dl('passport')">JSON</button><button onclick="hide()">Done</button></div>`);
-    poll();
+      <div class="row"><button class="primary" onclick="dl('passport.pdf')">Passport PDF</button><button onclick="dl('passport.html')">HTML</button><button onclick="dl('passport')">JSON</button><button onclick="hide()">Done</button></div>`, 'glow');
+    tlCount = -1; poll();
   } catch (e) {
-    const d = e.detail || {}; const reasons = d.reasons || [e.message];
-    if (e.status !== 409) return modal(`<h2>Could not close</h2><p>${esc(e.message)}</p><div class="row"><button onclick="hide()">OK</button></div>`);
-    modal(`<h2>Close blocked</h2><p>The verifier found problems the passport cannot hide:</p><ul class="reasons">${reasons.map(r => `<li>${esc(r)}</li>`).join('')}</ul>
-      <label>To close anyway, write what you are accepting. The passport will say CLOSED WITH EXCEPTIONS.</label><textarea id="cnote" rows="3"></textarea>
+    const d = e.detail || {}; const reasons = d.reasons || [friendly(e)];
+    if (e.status !== 409) return modal(`<h2 id="mtitle">Could not close</h2><p>${esc(friendly(e))}</p><div class="row"><button onclick="hide()">OK</button></div>`);
+    modal(`<h2 id="mtitle">Close blocked</h2><p>The verifier found problems the passport cannot hide:</p><ul class="reasons">${reasons.map(r => `<li>${esc(r)}</li>`).join('')}</ul>
+      <label for="cnote">To close anyway, write what you are accepting. The passport will say CLOSED WITH EXCEPTIONS.</label><textarea id="cnote" rows="3"></textarea>
       <div class="row"><button class="danger" onclick="closeJob(true, document.getElementById('cnote').value)">Close with exceptions</button><button onclick="hide()">Keep working</button></div>`);
   }
 }
 async function dl(kind) {
-  const ext = kind === 'passport' ? 'json' : kind.split('.')[1]; const r = await api(`/sessions/${sid}/${kind}`, {}, true);
-  const blob = await r.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `cairn-passport.${ext}`; a.click();
-  if (ext === 'html' || ext === 'pdf') window.open(a.href, '_blank');
+  try {
+    const ext = kind === 'passport' ? 'json' : kind.split('.')[1]; const r = await api(`/sessions/${sid}/${kind}`, {}, true);
+    if (!r.ok) throw new Error('Passport download failed (' + r.status + ')');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(await r.blob()); a.download = `cairn-passport.${ext}`; a.click();
+    if (ext === 'html' || ext === 'pdf') window.open(a.href, '_blank');
+  } catch (e) { notify(friendly(e)); }
 }
 
 /* ---------- jobs ---------- */
 $('btn-new').onclick = showJobs;
+$('btn-token').onclick = () => { tokenCancelledAt = 0; poll(); };
+function locked() {
+  modal(`<h2 id="mtitle">This server is locked</h2><p>It needs an API token before it will show or change anything.</p>
+    <div class="row"><button class="primary" id="lk">Enter token</button></div>`);
+  $('lk').onclick = () => { tokenCancelledAt = 0; hide(); showJobs(); };
+}
 async function showJobs() {
-  let list = []; try { list = (await api('/sessions')).sessions; } catch (e) {}
+  let list = []; try { list = (await api('/sessions')).sessions; } catch (e) { if (e.status === 401) return locked(); }
   let devices = ['demo_laptop']; try { devices = (await api('/devices')).devices; } catch (e) {}
-  modal(`<h2>New job</h2>
-    <label>Device</label><select id="j-dev">${devices.map(d => `<option>${esc(d)}</option>`).join('')}</select>
-    <label>Job number</label><input id="j-num" placeholder="J-1042">
-    <label>Technician</label><input id="j-tech" value="${esc(localStorage.getItem('cairn.tech') || '')}" placeholder="Your name">
-    <label>Bench</label><input id="j-bench" value="bench_01">
+  modal(`<h2 id="mtitle">New job</h2>
+    <label for="j-dev">Device</label><select id="j-dev">${devices.map(d => `<option>${esc(d)}</option>`).join('')}</select>
+    <label for="j-num">Job number</label><input id="j-num" placeholder="J-1042" autocomplete="off">
+    <label for="j-tech">Technician</label><input id="j-tech" value="${esc(store.get('cairn.tech') || '')}" placeholder="Your name" autocomplete="name">
+    <label for="j-bench">Bench</label><input id="j-bench" value="bench_01" autocomplete="off">
     <div class="row"><button class="primary" onclick="newJob()">Start job (snapshot the sealed device)</button></div>
-    <h2 style="margin-top:26px">Resume</h2>${list.length ? list.map(s => `<div class="row" style="margin:4px 0"><button onclick="resume('${s.id}')">${esc(s.job_number || s.id)} · ${esc(s.phase.toLowerCase())}${s.closed ? ' · ' + esc(s.closed) : ''}</button></div>`).join('') : '<p style="color:var(--dim)">No jobs yet.</p>'}
-    <h2 style="margin-top:26px">No bench handy?</h2><div class="row"><button onclick="runDemo()">Replay the scripted demo</button></div>`);
+    <h2 style="margin-top:26px">Resume</h2>${list.length ? list.map(s => `<div class="row" style="margin:4px 0"><button onclick="resume('${esc(s.id)}')">${esc(s.job_number || s.id)} · ${esc(s.phase.toLowerCase())}${s.closed ? ' · ' + esc(s.closed) : ''}</button></div>`).join('') : '<p class="muted">No jobs yet.</p>'}
+    <h2 style="margin-top:26px">No bench handy?</h2><div class="row"><button onclick="startDemo()">Replay the scripted demo</button></div>`);
 }
 async function newJob() {
-  const tech = $('j-tech').value.trim(); if (!tech) { $('j-tech').focus(); return; }
-  localStorage.setItem('cairn.tech', tech);
-  const d = await api('/sessions', {method: 'POST', json: {technician: tech, bench: $('j-bench').value || 'bench_01', device: $('j-dev').value, job_number: $('j-num').value || null}});
-  resume(d.id);
+  const tech = $('j-tech').value.trim(); if (!tech) { $('j-tech').setAttribute('aria-invalid', 'true'); $('j-tech').focus(); return; }
+  store.set('cairn.tech', tech);
+  try {
+    const d = await api('/sessions', {method: 'POST', json: {technician: tech, bench: $('j-bench').value || 'bench_01', device: $('j-dev').value, job_number: $('j-num').value || null}});
+    resume(d.id);
+  } catch (e) { notify(friendly(e)); }
 }
-function resume(id) { sid = id; localStorage.setItem('cairn.sid', id); review = null; tlCount = -1; seenAlert = ''; hide(); $('review').style.display = 'none'; poll(); }
-async function runDemo() {
-  modal('<p>Running the scripted demo&hellip;</p>'); const d = await api('/demo', {method: 'POST'}); resume(d.id);
+function resume(id) {
+  sid = id; store.set('cairn.sid', id); review = null; tlCount = -1; shownFrame = null; stepKey = ''; bannerKey = ''; primed = false; seenAlerts.clear();
+  hide(); $('review').style.display = 'none'; poll();
+}
+async function startDemo() {  // reuse the demo session of this browser instead of creating one per visit
+  const known = store.get('cairn.demo');
+  if (known) { try { await api(`/sessions/${known}`); resume(known); return; } catch (e) { store.del('cairn.demo'); } }
+  modal('<h2 id="mtitle">Replay</h2><p>Running the scripted demo&hellip;</p>');
+  try { const d = await api('/demo', {method: 'POST'}); store.set('cairn.demo', d.id); resume(d.id); }
+  catch (e) { return modal(`<h2 id="mtitle">Could not start the demo</h2><p>${esc(friendly(e))}</p><div class="row"><button onclick="hide()">OK</button></div>`); }
   const t = await api(`/sessions/${sid}/timeline`); renderTimeline(t.entries);
-  modal(`<h2>Demo job ready</h2><p>A teardown with a skipped battery step, a dropped screw, a wrong screw, a 30-minute break, and a reassembly. Click any timeline entry to see that moment, or play it through.</p>
+  modal(`<h2 id="mtitle">Demo job ready</h2><p>A teardown with a skipped battery step, a dropped screw, a wrong screw, a 30-minute break, and a reassembly. Click any timeline entry to see that moment, or play it through.</p>
     <div class="row"><button class="primary" onclick="hide();playAll()">Play through</button><button onclick="hide()">Browse it myself</button></div>`);
 }
-(async () => { if (new URLSearchParams(location.search).get('demo')) { await runDemo(); return; } if (sid) { try { await api(`/sessions/${sid}`); poll(); return; } catch (e) {} } showJobs(); })();
+(async () => {
+  if (new URLSearchParams(location.search).get('demo')) { await startDemo(); return; } if (sid) { try { await api(`/sessions/${sid}`); poll(); return; } catch (e) {} } showJobs();
+})();
 </script>
 </body>
 </html>

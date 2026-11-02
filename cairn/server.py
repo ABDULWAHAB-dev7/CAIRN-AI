@@ -23,7 +23,7 @@ import re
 import threading
 import time
 import uuid
-from collections import deque
+from collections import OrderedDict, deque
 from pathlib import Path
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request
@@ -41,6 +41,7 @@ from .perception import Sam31Perception, ZoneMap
 from .scenarios import hero_demo
 from .session import Detection, Frame, Session
 
+MAX_IMAGE_BYTES = 12 * 1024 * 1024  # a 960x600 JPEG is ~100 KB; this only stops abuse
 ID_RE = re.compile(r"^[0-9a-f]{12}$")
 ZONE_RE = r"^(device|hand|bench|tray_\d+)$"
 
@@ -54,18 +55,18 @@ class NewSession(BaseModel):
 
 
 class DetectionIn(BaseModel):
-    track_id: str
-    cls: str
+    track_id: str = Field(max_length=80)
+    cls: str = Field(max_length=60)
     zone: str = Field(pattern=ZONE_RE)
     confidence: float = Field(default=1.0, ge=0, le=1)
-    hole: str | None = None
+    hole: str | None = Field(default=None, max_length=80)
     xy: tuple[float, float] | None = None
 
 
 class FrameIn(BaseModel):
-    frame_id: str
+    frame_id: str = Field(max_length=80)
     ts: float | None = None
-    detections: list[DetectionIn]
+    detections: list[DetectionIn] = Field(max_length=300)
 
 
 class TapIn(BaseModel):
@@ -123,6 +124,7 @@ class Runtime:
     def __init__(self, sid: str, session: Session, frames: FrameStore):
         self.id, self.session, self.frames, self.lock = sid, session, frames, threading.Lock()
         self.alerts: deque = deque(maxlen=60)
+        self.render_cache: OrderedDict = OrderedDict()  # (frame, graph seq, well, camera?) -> PNG
         session.frame_sink = frames.append
 
     def meta(self) -> dict:
@@ -192,6 +194,17 @@ def _alerts(alerts) -> list[dict]:
 def _out(rt: Runtime, alerts) -> dict:
     rt.push(alerts)
     return {"alerts": _alerts(alerts), "recap": rt.session.recap(), "top": rt.session.top_strip()}
+
+
+async def _read_image(request: Request) -> bytes:
+    """Read an uploaded image, refusing anything larger than MAX_IMAGE_BYTES (declared or actual)."""
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > MAX_IMAGE_BYTES:
+        raise HTTPException(413, "image too large")
+    data = await request.body()
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(413, "image too large")
+    return data
 
 
 def make_agent(kind: str, privacy_local: bool) -> Agent:
@@ -288,7 +301,8 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
     def get_session(sid: str):
         rt = hub.get(sid)
         with rt.lock:
-            return {**rt.meta(), "snapshot": rt.session.snapshot(), "recent_alerts": list(rt.alerts)}
+            return {**rt.meta(), "snapshot": rt.session.snapshot(), "recent_alerts": list(rt.alerts),
+                    "latest_frame": rt.frames.order[-1] if rt.frames.order else None}
 
     @app.get("/sessions/{sid}/events", dependencies=secured)
     def get_events(sid: str, after: int = Query(0, ge=0), limit: int = Query(500, ge=1, le=5000)):
@@ -338,7 +352,7 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
         if perception is None:
             raise HTTPException(503, "no perception backend configured (CAIRN_PERCEPTION)")
         rt = hub.get(sid)
-        image = await request.body()
+        image = await _read_image(request)
         if not image:
             raise HTTPException(422, "empty image body")
         when = _now(rt, ts)
@@ -524,7 +538,7 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
     async def post_baseline(sid: str, request: Request):
         """Attach a camera frame of the sealed device as the job's baseline."""
         rt = hub.get(sid)
-        image = await request.body()
+        image = await _read_image(request)
         if not image:
             raise HTTPException(422, "empty image body")
         with rt.lock:
@@ -566,7 +580,13 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
                 raise HTTPException(404, "no such frame")
             if raw and img:
                 return Response(img, media_type="image/jpeg")
-            png = render_png(row, rt.session, highlight_well=well, background=img)
+            key = (row["frame_id"] if row else fid, rt.session.graph.seq, well, img is not None)
+            png = rt.render_cache.get(key)
+            if png is None:  # labels depend on the graph, so the graph's event count is part of the key
+                png = render_png(row, rt.session, highlight_well=well, background=img)
+                rt.render_cache[key] = png
+                while len(rt.render_cache) > 48:
+                    rt.render_cache.popitem(last=False)
         return Response(png, media_type="image/png", headers={"Cache-Control": "no-store"})
 
     @app.get("/v/{sid}", response_class=HTMLResponse)
