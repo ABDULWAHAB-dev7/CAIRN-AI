@@ -1,5 +1,5 @@
 {
-  "installCommand": "pip3 install -e \".[server,pdf]\"",
-  "buildCommand": "python3 scripts/export_static.py --out site --url https://cairn-ai-eta.vercel.app",
+  "installCommand": "python3 -m venv .venv && .venv/bin/pip install --quiet -e \".[server,pdf]\"",
+  "buildCommand": ".venv/bin/python scripts/export_static.py --out site --url https://cairn-ai-eta.vercel.app",
   "outputDirectory": "site"
 }
