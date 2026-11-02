@@ -20,7 +20,7 @@ cairn eval                # blueprint section 13 metrics on simulated sessions
 | Object graph, task graph, repair state machine, the three product queries | built, tested |
 | Safety kernel (ESD, power-off, hazard halt, no pry near battery); the agent can only explain it | built, tested |
 | Verification invariants (count, order, safety, closure, function) and passport gate | built, tested |
-| Passport: Ed25519-signed JSON + printable HTML, verifiable against the event log | built, tested |
+| Passport: Ed25519-signed JSON + HTML + PDF, verifiable against the event log | built, tested |
 | Identity/re-ID reconciler (track churn, dropout, lost-part recovery), restart from log alone | built, tested |
 | Human-confirmed tap fallback (same policy as perception) | built |
 | Agent: deterministic graph agent, plus Muse Wonder tool loop that can only propose legal steps | built, tested |
@@ -28,8 +28,9 @@ cairn eval                # blueprint section 13 metrics on simulated sessions
 | Perception: `ZoneMap` (pixels to tray/device/hand), `Sam31Perception` adapter, frame replay | built, tested |
 | Eval harness (recall, ID switches, missing-part latency, fault catch, false alarms) | built, **synthetic data only** |
 | Voice (Muse Voice), Glimmer local watcher, Muse Image passport art | not started |
-| Next.js overlay / tray map / timeline UI | not started |
-| Passport as PDF (HTML today) | not started |
+| Replay UI (`web/`, deployed on Vercel): timeline, part map, passport | built; static replay of the simulated demo |
+| Live camera overlay (canvas, Next.js) | not started |
+| Passport PDF export (needs `pip install -e ".[pdf]"`) | built, tested |
 
 ## What is not proven yet
 
