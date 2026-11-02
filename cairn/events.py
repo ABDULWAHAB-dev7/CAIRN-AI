@@ -31,7 +31,7 @@ class EventLog:
     """SQLite-backed log. UPDATE and DELETE are rejected by triggers, so history is replayable."""
 
     def __init__(self, path: str = ":memory:"):
-        self._db = sqlite3.connect(path)
+        self._db = sqlite3.connect(path, check_same_thread=False)  # callers serialise with a lock
         self._db.executescript(
             """
             create table if not exists events(

@@ -10,7 +10,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev,pdf]"
+      - run: pip install -e ".[dev,pdf,server]"
       - run: python -m pytest -q
       - run: cairn eval --out /tmp/metrics.json
       - run: cairn demo --out /tmp/demo

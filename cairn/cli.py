@@ -74,6 +74,18 @@ def cmd_verify(args) -> int:
     return 0 if ok else 1
 
 
+def cmd_serve(args) -> int:
+    try:
+        import uvicorn
+    except ImportError:
+        print('Install the server extra: pip install -e ".[server]"', file=sys.stderr)
+        return 1
+    from .server import create_app
+
+    uvicorn.run(create_app(args.data), host=args.host, port=args.port)
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="cairn")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -87,6 +99,11 @@ def main(argv=None) -> int:
     v.add_argument("passport")
     v.add_argument("--db")
     v.set_defaults(fn=cmd_verify)
+    sv = sub.add_parser("serve", help="run the HTTP backend (env config: see cairn/server.py)")
+    sv.add_argument("--host", default="127.0.0.1")
+    sv.add_argument("--port", type=int, default=8000)
+    sv.add_argument("--data", default=None, help="data dir (default $CAIRN_DATA_DIR or ./data)")
+    sv.set_defaults(fn=cmd_serve)
     args = ap.parse_args(argv)
     return args.fn(args)
 

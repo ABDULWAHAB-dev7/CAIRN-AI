@@ -153,3 +153,17 @@ class WonderAgent:
                 return {"ok": False, "error": "not a legal step now", "legal": list(legal)}
             return {"ok": True, **step}
         return {"error": f"unknown tool {tool}"}
+
+
+class SafeAgent:
+    """Use an LLM agent, but never let an outage stop the bench: fall back to the graph agent."""
+
+    def __init__(self, primary: Agent, fallback: Agent | None = None):
+        self.primary, self.fallback = primary, fallback or DeterministicAgent()
+
+    def respond(self, s: Session, utterance: str) -> Reply:
+        try:
+            return self.primary.respond(s, utterance)
+        except Exception as e:  # network, auth, malformed model output
+            r = self.fallback.respond(s, utterance)
+            return Reply(r.text, f"fallback ({type(e).__name__})")

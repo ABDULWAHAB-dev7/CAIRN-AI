@@ -119,3 +119,13 @@ def demo_laptop() -> Device:
     )
     trays = {p.tray: p.cls for p in parts.values() if p.kind == "fastener"}
     return Device("demo_laptop", "Demo laptop (23 fasteners)", parts, steps, trays)
+
+
+DEVICES = {"demo_laptop": demo_laptop}
+
+
+def get_device(device_id: str) -> Device:
+    try:
+        return DEVICES[device_id]()
+    except KeyError:
+        raise KeyError(f"unknown device {device_id!r}; known: {sorted(DEVICES)}") from None

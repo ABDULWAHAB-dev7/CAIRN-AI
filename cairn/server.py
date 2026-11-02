@@ -1,0 +1,473 @@
+"""HTTP backend: sessions, perception ingest, the agent, the live event stream and the passport.
+
+Run: `cairn serve`   (needs `pip install -e ".[server]"`)
+
+Config (environment):
+  CAIRN_DATA_DIR      where sessions, keys and passports live            (default ./data)
+  CAIRN_API_TOKEN     if set, every route except /health needs `Authorization: Bearer <token>`
+  CAIRN_AGENT         deterministic | wonder | glimmer                  (default deterministic)
+  CAIRN_PERCEPTION    none | sam                                        (default none)
+  CAIRN_ZONES         JSON file: {"trays": {"tray_1": [x0,y0,x1,y1]}, "device": [..], "prompts": {"hinge screw": "hinge_screw"}}
+  CAIRN_PRIVACY       local => customer images never leave the bench: sam perception and the cloud agent are refused
+"""
+from __future__ import annotations
+
+import asyncio
+import dataclasses
+import hmac
+import json
+import os
+import re
+import threading
+import time
+import uuid
+from pathlib import Path
+
+from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
+from pydantic import BaseModel, Field
+
+from . import __version__, passport, safety
+from .agent import Agent, DeterministicAgent, SafeAgent, WonderAgent
+from .device import DEVICES, get_device
+from .events import EventLog
+from .perception import Sam31Perception, ZoneMap
+from .scenarios import hero_demo
+from .session import Detection, Frame, Session
+
+ID_RE = re.compile(r"^[0-9a-f]{12}$")
+ZONE_RE = r"^(device|hand|bench|tray_\d+)$"
+
+
+# ---- request models ------------------------------------------------------------------------------
+class NewSession(BaseModel):
+    technician: str = Field(min_length=1, max_length=80)
+    bench: str = Field(default="bench_01", min_length=1, max_length=80)
+    device: str = "demo_laptop"
+
+
+class DetectionIn(BaseModel):
+    track_id: str
+    cls: str
+    zone: str = Field(pattern=ZONE_RE)
+    confidence: float = Field(default=1.0, ge=0, le=1)
+    hole: str | None = None
+    xy: tuple[float, float] | None = None
+
+
+class FrameIn(BaseModel):
+    frame_id: str
+    ts: float | None = None
+    detections: list[DetectionIn]
+
+
+class TapIn(BaseModel):
+    part_id: str
+    zone: str = Field(pattern=ZONE_RE)
+    hole: str | None = None
+    ts: float | None = None
+
+
+class StepIn(BaseModel):
+    step_id: str
+    ts: float | None = None
+
+
+class HazardIn(BaseModel):
+    kind: str = Field(pattern="^(smoke|heat|swelling)$")
+    ts: float | None = None
+
+
+class NoteIn(BaseModel):
+    note: str = Field(min_length=1, max_length=500)
+    ts: float | None = None
+
+
+class RetireIn(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+    ts: float | None = None
+
+
+class BootIn(BaseModel):
+    passed: bool
+    ts: float | None = None
+
+
+class AskIn(BaseModel):
+    utterance: str = Field(min_length=1, max_length=1000)
+
+
+class GuardIn(BaseModel):
+    kind: str = Field(pattern="^(remove|pry)$")
+    part_id: str | None = None
+    near: str | None = None
+
+
+class PassportIn(BaseModel):
+    technician: str | None = None
+    ts: float | None = None
+
+
+# ---- runtime -------------------------------------------------------------------------------------
+class Runtime:
+    def __init__(self, sid: str, session: Session):
+        self.id, self.session, self.lock = sid, session, threading.Lock()
+
+    def meta(self) -> dict:
+        g = self.session.graph
+        return {"id": self.id, "device": g.device.id, "technician": g.registration.get("technician"),
+                "bench": g.registration.get("bench"), "phase": g.phase().value,
+                "events": len(self.session.log), "verified": g.verified}
+
+
+class Hub:
+    def __init__(self, data_dir: Path):
+        self.dir = data_dir
+        for sub in ("sessions", "passports", "keys"):
+            (self.dir / sub).mkdir(parents=True, exist_ok=True)
+        self.items: dict[str, Runtime] = {}
+        self._lock = threading.Lock()
+        for f in sorted((self.dir / "sessions").glob("*.db")):
+            if ID_RE.match(f.stem):
+                self._load(f)
+
+    def _load(self, f: Path) -> None:
+        log = EventLog(str(f))
+        first = next(iter(log.events()), None)
+        if first is None or first.type != "device_registered":
+            return
+        self.items[f.stem] = Runtime(f.stem, Session(get_device(first.payload["device_id"]), log))
+
+    def create(self, technician: str, bench: str, device: str, log_id: str | None = None) -> Runtime:
+        sid = log_id or uuid.uuid4().hex[:12]
+        rt = Runtime(sid, Session(get_device(device), EventLog(str(self.dir / "sessions" / f"{sid}.db"))))
+        with self._lock:
+            self.items[sid] = rt
+        return rt
+
+    def get(self, sid: str) -> Runtime:
+        rt = self.items.get(sid) if ID_RE.match(sid) else None
+        if rt is None:
+            raise HTTPException(404, "no such session")
+        return rt
+
+    def signer(self, bench: str) -> passport.Signer:
+        safe = re.sub(r"[^A-Za-z0-9_-]", "_", bench)[:60] or "bench"
+        return passport.Signer.load_or_create(self.dir / "keys" / f"{safe}.pem")
+
+    def passport_path(self, sid: str) -> Path:
+        return self.dir / "passports" / f"{sid}.json"
+
+
+def _now(rt: Runtime, ts: float | None) -> float:
+    """Server clock unless the caller supplies one; never earlier than the last event."""
+    return max(ts if ts is not None else time.time(), rt.session.graph.last_ts)
+
+
+def _alerts(alerts) -> list[dict]:
+    return [dataclasses.asdict(a) for a in alerts]
+
+
+def make_agent(kind: str, privacy_local: bool) -> Agent:
+    if kind == "wonder":
+        if privacy_local:
+            raise RuntimeError("CAIRN_PRIVACY=local forbids the cloud Wonder agent; use glimmer")
+        from .meta_api import MetaClient, WonderClient
+        return SafeAgent(WonderAgent(WonderClient(MetaClient())))
+    if kind == "glimmer":
+        from .local_llm import GlimmerClient
+        return SafeAgent(WonderAgent(GlimmerClient()))
+    if kind != "deterministic":
+        raise RuntimeError(f"unknown CAIRN_AGENT {kind!r}")
+    return DeterministicAgent()
+
+
+def make_perception(kind: str, privacy_local: bool, zones_file: str | None):
+    if kind == "none":
+        return None
+    if kind != "sam":
+        raise RuntimeError(f"unknown CAIRN_PERCEPTION {kind!r}")
+    if privacy_local:
+        raise RuntimeError("CAIRN_PRIVACY=local forbids sending bench images to the cloud SAM API")
+    if not zones_file:
+        raise RuntimeError("CAIRN_PERCEPTION=sam needs CAIRN_ZONES (tray and device calibration)")
+    from .meta_api import MetaClient, Sam31Backend
+    cfg = json.loads(Path(zones_file).read_text(encoding="utf-8"))
+    zones = ZoneMap({k: tuple(v) for k, v in cfg["trays"].items()}, tuple(cfg["device"]))
+    return Sam31Perception(Sam31Backend(MetaClient()), zones, cfg["prompts"])
+
+
+def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, perception=None,
+               api_token: str | None = None) -> FastAPI:
+    env = os.environ.get
+    privacy_local = env("CAIRN_PRIVACY", "") == "local"
+    hub = Hub(Path(data_dir or env("CAIRN_DATA_DIR", "data")))
+    if agent is None:
+        agent = make_agent(env("CAIRN_AGENT", "deterministic"), privacy_local)
+    if perception is None:
+        perception = make_perception(env("CAIRN_PERCEPTION", "none"), privacy_local, env("CAIRN_ZONES"))
+    token = api_token if api_token is not None else env("CAIRN_API_TOKEN")
+
+    def auth(request: Request):
+        if token and not hmac.compare_digest(request.headers.get("authorization", ""), f"Bearer {token}"):
+            raise HTTPException(401, "missing or invalid bearer token")
+
+    app = FastAPI(title="Cairn", version=__version__)
+    secured = [Depends(auth)]
+
+    @app.get("/health")
+    def health():
+        return {"ok": True, "version": __version__, "agent": type(agent).__name__,
+                "perception": type(perception).__name__ if perception else None,
+                "privacy": "local" if privacy_local else "cloud-allowed", "auth": bool(token),
+                "sessions": len(hub.items)}
+
+    @app.get("/devices", dependencies=secured)
+    def devices():
+        return {"devices": sorted(DEVICES)}
+
+    # ---- sessions -----------------------------------------------------------------------------
+    @app.post("/sessions", status_code=201, dependencies=secured)
+    def create_session(body: NewSession):
+        try:
+            rt = hub.create(body.technician, body.bench, body.device)
+        except KeyError as e:
+            raise HTTPException(422, str(e).strip("'\""))
+        rt.session.register(time.time(), body.technician, body.bench)
+        return {**rt.meta(), "snapshot": rt.session.snapshot()}
+
+    @app.post("/demo", status_code=201, dependencies=secured)
+    def run_demo():
+        """Create a session and drive the scripted hero demo into it (dev, demos, UI testing)."""
+        sid = uuid.uuid4().hex[:12]
+        log = EventLog(str(hub.dir / "sessions" / f"{sid}.db"))
+        bench = None
+        for _, bench in hero_demo(log):
+            pass
+        rt = Runtime(sid, bench.session)
+        hub.items[sid] = rt
+        return {**rt.meta(), "snapshot": rt.session.snapshot()}
+
+    @app.get("/sessions", dependencies=secured)
+    def list_sessions():
+        return {"sessions": [rt.meta() for rt in hub.items.values()]}
+
+    @app.get("/sessions/{sid}", dependencies=secured)
+    def get_session(sid: str):
+        rt = hub.get(sid)
+        with rt.lock:
+            return {**rt.meta(), "snapshot": rt.session.snapshot()}
+
+    @app.get("/sessions/{sid}/events", dependencies=secured)
+    def get_events(sid: str, after: int = Query(0, ge=0), limit: int = Query(500, ge=1, le=5000)):
+        rt = hub.get(sid)
+        with rt.lock:
+            evs = [e for e in rt.session.log.events() if e.seq > after][:limit]
+            ok, bad = rt.session.log.verify()
+        return {"chain_ok": ok, "bad_seq": bad, "head": rt.session.log.head(),
+                "events": [dataclasses.asdict(e) for e in evs]}
+
+    @app.get("/sessions/{sid}/stream", dependencies=secured)
+    async def stream(sid: str, request: Request, after: int = Query(0, ge=0), follow: bool = True):
+        rt = hub.get(sid)
+
+        async def gen():
+            seq = after
+            while True:
+                with rt.lock:
+                    new = [e for e in rt.session.log.events() if e.seq > seq]
+                for e in new:
+                    seq = e.seq
+                    yield f"id: {e.seq}\nevent: {e.type}\ndata: {json.dumps(dataclasses.asdict(e))}\n\n"
+                if not follow or await request.is_disconnected():
+                    return
+                await asyncio.sleep(0.4)
+
+        return StreamingResponse(gen(), media_type="text/event-stream")
+
+    # ---- observations in ----------------------------------------------------------------------
+    def _check_parts(rt: Runtime, *ids):
+        for i in ids:
+            if i is not None and i not in rt.session.graph.parts:
+                raise HTTPException(404, f"unknown part {i!r}")
+
+    @app.post("/sessions/{sid}/frames", dependencies=secured)
+    def post_frame(sid: str, body: FrameIn):
+        rt = hub.get(sid)
+        with rt.lock:
+            ts = _now(rt, body.ts)
+            f = Frame(body.frame_id, ts, tuple(Detection(d.track_id, d.cls, d.zone, d.confidence, d.hole, d.xy)
+                                               for d in body.detections))
+            alerts = rt.session.observe(f)
+            return {"alerts": _alerts(alerts), "recap": rt.session.recap()}
+
+    @app.post("/sessions/{sid}/image", dependencies=secured)
+    async def post_image(sid: str, request: Request, frame_id: str | None = None, ts: float | None = None):
+        if perception is None:
+            raise HTTPException(503, "no perception backend configured (CAIRN_PERCEPTION)")
+        rt = hub.get(sid)
+        image = await request.body()
+        if not image:
+            raise HTTPException(422, "empty image body")
+        when = _now(rt, ts)
+        fid = frame_id or f"img_{int(when * 1000)}"
+        try:
+            frame = await asyncio.to_thread(perception.frame, fid, when, image)
+        except Exception as e:
+            raise HTTPException(502, f"perception failed: {type(e).__name__}: {e}")
+        with rt.lock:
+            alerts = rt.session.observe(frame)
+            return {"alerts": _alerts(alerts), "detections": len(frame.detections), "recap": rt.session.recap()}
+
+    @app.post("/sessions/{sid}/taps", dependencies=secured)
+    def post_tap(sid: str, body: TapIn):
+        rt = hub.get(sid)
+        _check_parts(rt, body.part_id)
+        with rt.lock:
+            alerts = rt.session.observe_manual(body.part_id, body.zone, _now(rt, body.ts), body.hole)
+            return {"alerts": _alerts(alerts), "recap": rt.session.recap()}
+
+    @app.post("/sessions/{sid}/steps", dependencies=secured)
+    def post_step(sid: str, body: StepIn):
+        rt = hub.get(sid)
+        base = body.step_id[2:] if body.step_id.startswith("r_") else body.step_id
+        try:
+            spec = rt.session.device.step(base)
+        except KeyError:
+            raise HTTPException(404, f"unknown step {body.step_id!r}")
+        if spec.removes or (body.step_id.startswith("r_") and not spec.reverse_action):
+            raise HTTPException(422, "only action steps (ESD, battery) are logged by voice or tap")
+        with rt.lock:
+            alerts = rt.session.complete_step(body.step_id, _now(rt, body.ts), "api")
+            return {"alerts": _alerts(alerts), "recap": rt.session.recap()}
+
+    @app.post("/sessions/{sid}/hazard", dependencies=secured)
+    def post_hazard(sid: str, body: HazardIn):
+        rt = hub.get(sid)
+        with rt.lock:
+            alerts = rt.session.report_hazard(body.kind, _now(rt, body.ts))
+            return {"alerts": _alerts(alerts), "recap": rt.session.recap()}
+
+    @app.delete("/sessions/{sid}/hazard", dependencies=secured)
+    def clear_hazard(sid: str, body: NoteIn):
+        rt = hub.get(sid)
+        with rt.lock:
+            if not rt.session.graph.hazard:
+                raise HTTPException(409, "no active hazard")
+            rt.session.clear_hazard(_now(rt, body.ts), body.note)
+            return {"recap": rt.session.recap()}
+
+    @app.post("/sessions/{sid}/exceptions/{xid}/resolve", dependencies=secured)
+    def resolve(sid: str, xid: str, body: NoteIn):
+        rt = hub.get(sid)
+        with rt.lock:
+            x = rt.session.graph.exceptions.get(xid)
+            if x is None:
+                raise HTTPException(404, "no such exception")
+            if x.resolved:
+                raise HTTPException(409, "already resolved")
+            rt.session.resolve_exception(xid, _now(rt, body.ts), body.note)
+            return {"recap": rt.session.recap()}
+
+    @app.post("/sessions/{sid}/parts/{pid}/retire", dependencies=secured)
+    def retire(sid: str, pid: str, body: RetireIn):
+        rt = hub.get(sid)
+        _check_parts(rt, pid)
+        with rt.lock:
+            rt.session.retire_part(pid, _now(rt, body.ts), body.reason)
+            return {"recap": rt.session.recap()}
+
+    @app.post("/sessions/{sid}/boot-test", dependencies=secured)
+    def boot(sid: str, body: BootIn):
+        rt = hub.get(sid)
+        with rt.lock:
+            rt.session.record_boot_test(body.passed, _now(rt, body.ts))
+            return {"can_close": rt.session.can_close()[0], "recap": rt.session.recap()}
+
+    # ---- reasoning ----------------------------------------------------------------------------
+    @app.post("/sessions/{sid}/ask", dependencies=secured)
+    def ask(sid: str, body: AskIn):
+        rt = hub.get(sid)
+        with rt.lock:
+            r = agent.respond(rt.session, body.utterance)
+        return {"text": r.text, "source": r.source}
+
+    @app.get("/sessions/{sid}/queries/{name}", dependencies=secured)
+    def queries(sid: str, name: str):
+        rt = hub.get(sid)
+        with rt.lock:
+            g = rt.session.graph
+            if name == "missing_parts":
+                return {"missing_parts": g.missing_parts()}
+            if name == "next_step":
+                return {"next_step": g.next_step(), "valid": g.valid_next_steps()}
+            if name == "can_close":
+                ok, reasons = rt.session.can_close()
+                return {"can_close": ok, "reasons": reasons}
+        raise HTTPException(404, "queries: missing_parts | next_step | can_close")
+
+    @app.post("/sessions/{sid}/guard", dependencies=secured)
+    def guard(sid: str, body: GuardIn):
+        rt = hub.get(sid)
+        _check_parts(rt, body.part_id)
+        with rt.lock:
+            v = rt.session.guard(safety.Action(body.kind, body.part_id, body.near))
+        return dataclasses.asdict(v)
+
+    # ---- passport -----------------------------------------------------------------------------
+    @app.post("/sessions/{sid}/passport", dependencies=secured)
+    def issue_passport(sid: str, body: PassportIn = Body(default_factory=PassportIn)):
+        rt = hub.get(sid)
+        path = hub.passport_path(sid)
+        with rt.lock:
+            if path.exists():  # idempotent: a signed passport is never re-signed
+                return json.loads(path.read_text(encoding="utf-8"))
+            g = rt.session.graph
+            tech = body.technician or g.registration.get("technician") or "unknown"
+            try:
+                p = passport.issue(rt.session, tech, hub.signer(g.registration.get("bench", "bench")),
+                                   _now(rt, body.ts))
+            except passport.PassportRefused as e:
+                raise HTTPException(409, {"error": "invariants not satisfied", "reasons": e.reasons})
+            path.write_text(passport.dumps(p), encoding="utf-8")
+            return p
+
+    def _stored(sid: str) -> dict:
+        hub.get(sid)
+        path = hub.passport_path(sid)
+        if not path.exists():
+            raise HTTPException(404, "no passport issued for this session")
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    @app.get("/sessions/{sid}/passport", dependencies=secured)
+    def get_passport(sid: str):
+        return _stored(sid)
+
+    @app.get("/sessions/{sid}/passport.html", dependencies=secured, response_class=HTMLResponse)
+    def passport_html(sid: str):
+        return passport.to_html(_stored(sid))
+
+    @app.get("/sessions/{sid}/passport.pdf", dependencies=secured)
+    def passport_pdf(sid: str):
+        p = _stored(sid)
+        out = hub.dir / "passports" / f"{sid}.pdf"
+        try:
+            passport.to_pdf(p, out)
+        except ImportError:
+            raise HTTPException(501, "PDF export needs Pillow: pip install cairn[pdf]")
+        return Response(out.read_bytes(), media_type="application/pdf")
+
+    @app.post("/verify", dependencies=secured)
+    def verify(body: dict = Body(...)):
+        """Stateless: check a passport's signature and, if events are supplied, the hash chain."""
+        if "body" not in body or "signature" not in body:
+            raise HTTPException(422, "expected {body, signature}")
+        from .events import Event
+        try:
+            events = [Event(**e) for e in body["events"]] if body.get("events") is not None else None
+            ok, problems = passport.verify({"body": body["body"], "signature": body["signature"]}, events)
+        except (KeyError, TypeError, ValueError, IndexError) as e:
+            raise HTTPException(422, f"malformed passport or events: {type(e).__name__}")
+        return {"valid": ok, "problems": problems}
+
+    return app
