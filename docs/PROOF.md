@@ -42,6 +42,8 @@ status and a timestamp, and fails loudly if the parser disagrees with the live s
 
 - **2026-11-02: the hosted site returned 404 for about 10 minutes.** The Vercel project is linked to this GitHub repo,
   so each merge to `main` auto-deployed the repo root (which has no `index.html`) as production and took over the
-  alias. The static site was redeployed from the CLI and returned 200 again. The cause is in the project's Git link, not
-  in the code; see the report for the proposed fix.
+  alias. The static site was redeployed from the CLI and returned 200 again. **Fix:** a root `vercel.json` makes Git-triggered
+  builds generate the static site (`scripts/export_static.py`) instead of deploying the empty repo root. It was verified on a
+  Git-triggered **preview** build (`/`, `/bench`, `/v`, `/v.html`, `/data/passport.pdf` all 200) before this change was
+  merged; the production result after merge is recorded in the sprint report.
 - **`/favicon.ico` returns 404** (one console error per page load). Cosmetic; not fixed.
