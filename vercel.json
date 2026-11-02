@@ -1,0 +1,5 @@
+{
+  "installCommand": "pip3 install -e \".[server,pdf]\"",
+  "buildCommand": "python3 scripts/export_static.py --out site --url https://cairn-ai-eta.vercel.app",
+  "outputDirectory": "site"
+}

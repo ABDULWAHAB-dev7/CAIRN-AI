@@ -1,0 +1,12 @@
+# cairn demo on a fresh clone of main @ aea5e83, 2026-11-02T18:31:40Z. The session is SIMULATED.
+
+Passport: 23/23 fasteners, 0 extra parts, chain verified
+Wrote passport.json, .html, .pdf and repair.db to out
+
+# cairn verify (signature + hash chain against the event log)
+VALID
+exit 0
+
+# tamper test: counts edited 23 -> 99 in a copy of the passport
+INVALID: signature does not match the passport body
+exit 1

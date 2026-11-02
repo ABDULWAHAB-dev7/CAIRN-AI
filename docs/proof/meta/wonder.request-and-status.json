@@ -1,0 +1,22 @@
+{
+  "called_at_utc": "2026-11-02T18:30:07.417709+00:00",
+  "env_var_used": "META_API_KEY",
+  "endpoint": "https://api.meta.ai/v1/responses",
+  "http_status": 401,
+  "request_authorization": "Bearer [redacted]",
+  "request_body": {
+    "model": "muse-wonder-1.0",
+    "input": "Reply with exactly one word: ok",
+    "stream": false
+  },
+  "response_headers": {
+    "Content-Type": "application/json",
+    "x-request-id": "3dd37174-3806-4582-80ca-828364cb3bce",
+    "Access-Control-Allow-Origin": "*",
+    "Date": "Mon, 02 Nov 2026 18:30:08 GMT",
+    "x-route": "model-api-rust",
+    "Proxy-Status": "http_request_error; e_proxy=\"AcRNhv70U8pClRguOjKFO7IXXt1jlv3559rhXxLehnlq0rVehDzxiAQB1LnRWodplHCrVECm6g-lP58UK_ewig\"; e_fb_twtaskhandle=\"AcTKShijsE54oGkdon-zV83hcb3g1svsKavjJaMpx37JGmDKHQbXdbD5mnBn08kjImRMkbgIUq1-1Zz64ERieDTxogtQCRA1N2vZo6zg\"; e_upip=\"AcTFms7g25Plh3n0SduVoSOeZK8iGzXhDIPY0JqoQUk641HvxXV4fNP1g30efcZ1dtmqI2-TZ0O9PZ4hgo53YQrNRF3ZoIflKUUu5yGH\"; e_fb_zone=\"AcRtwne7F-I7GgkhAklc215rxeyDPjbdeZ_qDqs8c1BUBQUm-NHqJOpdhOEEntVi\"; e_clientaddr=\"AcS3jtq59-VWymd8hVXb1k8St8BgG_QkzTuvqqPG0PitNck--26JwqDpXovh3b_mgx-M7VrA7PBHj-vjyFymJrm2QqtEj4ikfZhq61-UT0FdKp54sQ\"; e_fb_vipaddr=\"AcSp7re8X_WhBV2M2-FOKY-HxNJ0fX7gHl_bdVKybtoQhMdxI4tW3gpWbbxAAY8g-vf2vws5XAnnLWjXjzoibw0MHfuvd78ZSPCCrqJv\", http_request_error; e_proxy=\"AcRC4f74jeyDsKbuVSNJlqnIhXmu8yZHnfOo8qoOi8X-La4xw1PmyMAEv7e9iUVkW0clna6G7WXXiXk\"; e_fb_twtaskhandle=\"AcRei07LYabgSz9TevrldszuHyZaXuXlfDXdzhWH2DjZ7UNt9iBHHW-YrIkrKkGhb-DmhcwfnqJ4mD47yg8dwz3Mr3Y7Ep5jMAEl\"; e_upip=\"AcTX23ewcOE_PPkMnP15Q8754q1jMx5OJ1q2d_qFcsUE1-52vjomvBjOj8Arlocctgg3QUramPEhDyWkev8VN25XJjNLiBkcxm2ju0PU\"; e_fb_zone=\"AcQD5ZVBHDAxtUgFYaDaZ5wh_kZ4bjyXiNLHGjEcN2HR6lexc4yH0rIl4GdSUQ\"; e_clientaddr=\"AcTJgLc_Yz4FOBekR8NMGPuRneGhXpPRsqaDNfBQbKQDTnjswXQVuiD-GQUkHbB3dZVcBIsAVJqPlPxf6Gv1O7sYY5vZJogK_RXR5OZu3lmkZfkntqIDlw\"; e_fb_vipaddr=\"AcTKM_84QqyGgPBHfLriE3RZb8FRTT2QLapAOkfgAEDp4dBl8q0YhuWLgs5VSfrTdBYidwXSgCg7CeSX0BeKp86T9nj_QEU5uw\"",
+    "Connection": "close",
+    "Content-Length": "104"
+  }
+}
