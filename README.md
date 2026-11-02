@@ -29,6 +29,10 @@ cairn eval                         # records 10 simulated sessions, replays and 
 https://cairn-ai-eta.vercel.app. The live backend is not on Vercel: it needs a persistent disk and a long-lived
 event stream, so run it with Docker or on a host that offers both.
 
+## Design
+
+The front end follows the "aurora behind smoked glass" reference: a near-black void, pearl type, one violet signal, depth from surface value rather than shadow, 3px buttons and inputs, 10px cards, light-on-dark primary buttons. Tokens live in `cairn/ui/tokens.css` (the display face is self-hosted Inter Tight, a substitute for Overused Grotesk). `/` is the landing page, `/bench` the working screen. The rendered camera frames use the same palette. One deliberate deviation from the reference: critical safety states and missing parts use a single muted red, because colour is the fastest signal on a safety stop. A test (`test_pages_use_only_the_design_palette`) keeps both pages inside the palette.
+
 ## The bench screen
 
 One view, not a chat window (`cairn/ui/bench.html`, served at `/`):

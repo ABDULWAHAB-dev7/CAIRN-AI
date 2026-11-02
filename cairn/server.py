@@ -28,6 +28,7 @@ from pathlib import Path
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import __version__, passport, safety
@@ -593,9 +594,16 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
             f"<p style='color:#64748b;font-size:13px'>{note}<br>"
             f"Chain head {esc(b['event_chain']['head'][:24])}&hellip;</p>")
 
+    ui_dir = Path(__file__).parent / "ui"
+
     @app.get("/", include_in_schema=False)
+    def landing():
+        return FileResponse(ui_dir / "index.html")
+
     @app.get("/bench", include_in_schema=False)
     def bench_ui():
-        return FileResponse(Path(__file__).parent / "ui" / "bench.html")
+        return FileResponse(ui_dir / "bench.html")
+
+    app.mount("/ui", StaticFiles(directory=ui_dir), name="ui")  # tokens.css and the self-hosted font
 
     return app

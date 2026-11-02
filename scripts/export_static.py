@@ -1,8 +1,8 @@
-"""Build a read-only static site of the bench screen replaying the simulated hero demo.
+"""Build a read-only static site: the landing page plus the bench screen replaying the simulated hero demo.
 
     python scripts/export_static.py [--out site] [--url https://example.vercel.app]
 
-The page is the real cairn/ui/bench.html; a small shim answers its API calls from files written
+The bench page is the real cairn/ui/bench.html; a small shim answers its API calls from files written
 here, so every click on the timeline shows the real rendered frame and the real state at that event.
 Nothing is live: no camera, no model, no server. Deploy the output folder to any static host.
 """
@@ -29,7 +29,7 @@ SHIM = r"""
   const json = (o, status = 200) => new Response(JSON.stringify(o), {status, headers: {'Content-Type': 'application/json'}});
   const file = (p) => real(p);
   let META = null, SESSION = null;
-  const ready = Promise.all([real('data/meta.json').then(r => r.json()), real('data/session.json').then(r => r.json())])
+  const ready = Promise.all([real('/data/meta.json').then(r => r.json()), real('/data/session.json').then(r => r.json())])
     .then(([m, s]) => { META = m; SESSION = s; });
   window.fetch = async (url, opts = {}) => {
     await ready;
@@ -39,13 +39,13 @@ SHIM = r"""
     if (p === '/devices') return json({devices: ['demo_laptop']});
     if (p === '/demo' || (p === '/sessions' && method === 'POST')) return json({...META, snapshot: SESSION.snapshot});
     if (/^\/sessions\/[^/]+$/.test(p)) return json(SESSION);
-    if (/\/timeline$/.test(p)) return file('data/timeline.json');
-    if ((m = p.match(/\/at\/(\d+)$/))) { const r = await file(`data/at/${m[1]}.json`); return r.ok ? r : json({detail: 'no such event'}, 404); }
-    if ((m = p.match(/\/frames\/([^/]+)\.png$/))) { const r = await file(`data/frames/${decodeURIComponent(m[1])}.png`); return r.ok ? r : json({detail: 'frame not in this replay'}, 404); }
-    if (/\/close$/.test(p)) return file('data/passport.json');
-    if (/\/passport\.pdf$/.test(p)) return file('data/passport.pdf');
-    if (/\/passport\.html$/.test(p)) return file('data/passport.html');
-    if (/\/passport$/.test(p)) return file('data/passport.json');
+    if (/\/timeline$/.test(p)) return file('/data/timeline.json');
+    if ((m = p.match(/\/at\/(\d+)$/))) { const r = await file(`/data/at/${m[1]}.json`); return r.ok ? r : json({detail: 'no such event'}, 404); }
+    if ((m = p.match(/\/frames\/([^/]+)\.png$/))) { const r = await file(`/data/frames/${decodeURIComponent(m[1])}.png`); return r.ok ? r : json({detail: 'frame not in this replay'}, 404); }
+    if (/\/close$/.test(p)) return file('/data/passport.json');
+    if (/\/passport\.pdf$/.test(p)) return file('/data/passport.pdf');
+    if (/\/passport\.html$/.test(p)) return file('/data/passport.html');
+    if (/\/passport$/.test(p)) return file('/data/passport.json');
     if (/\/ask$/.test(p)) return json({text: 'This replay is read-only. Run the full app to talk to Cairn.', source: 'replay'});
     if (method !== 'GET') return json({detail: 'This is a read-only replay of a simulated session.'}, 409);
     return real(url, opts);
@@ -150,8 +150,16 @@ def main() -> None:
     page = (Path(__file__).resolve().parents[1] / "cairn" / "ui" / "bench.html").read_text(encoding="utf-8")
     page = page.replace("<script>\nconst $ =", SHIM + "<script>\nconst $ =", 1)
     assert SHIM in page, "bench.html layout changed: shim not injected"
-    page = page.replace("(async () => { if (sid) {", "(async () => { sid = 'demo'; localStorage.setItem('cairn.sid', 'demo'); if (sid) {", 1)
-    (out / "index.html").write_text(page, encoding="utf-8")
+    marker = "return; } if (sid) {"
+    assert marker in page, "bench.html layout changed: startup hook not found"
+    page = page.replace(marker, "return; } sid = 'demo'; localStorage.setItem('cairn.sid', 'demo'); if (sid) {", 1)
+    ui = Path(__file__).resolve().parents[1] / "cairn" / "ui"
+    (out / "bench.html").write_text(page, encoding="utf-8")
+    (out / "bench").mkdir()
+    (out / "bench" / "index.html").write_text(page, encoding="utf-8")  # /bench works on any static host
+    (out / "index.html").write_text((ui / "index.html").read_text(encoding="utf-8"), encoding="utf-8")  # landing
+    shutil.copytree(ui, out / "ui", ignore=shutil.ignore_patterns("*.html"))  # tokens.css + self-hosted font
+    (out / "vercel.json").write_text(json.dumps({"cleanUrls": True}), encoding="utf-8")
     size = sum(f.stat().st_size for f in out.rglob("*") if f.is_file())
     print(f"{len(list((out / 'data' / 'at').iterdir()))} states, {len(frames_written) + 1} frames, {size / 1e6:.1f} MB -> {out}")
 

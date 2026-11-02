@@ -213,10 +213,27 @@ def test_public_verify_page_needs_no_token_and_flags_tampering(tmp_path):
     assert c.get(f"/sessions/{did}/passport", headers={}).status_code == 401  # the full record still needs the token
 
 
-def test_bench_ui_is_served(client):
-    for path in ("/", "/bench"):
-        r = client.get(path)
-        assert r.status_code == 200 and "Cairn Bench" in r.text and "REMOVED" in r.text and "Close job" in r.text
+def test_landing_bench_and_design_assets_are_served(client):
+    home = client.get("/")
+    assert home.status_code == 200 and "Object permanence for physical work" in home.text and 'href="/bench' in home.text
+    assert "Not yet" in home.text and "SAM 3.1 on a real camera" in home.text  # the page says what is not done
+    bench = client.get("/bench")
+    assert bench.status_code == 200 and "Cairn Bench" in bench.text and "REMOVED" in bench.text and "Close job" in bench.text
+    css = client.get("/ui/tokens.css")
+    assert css.status_code == 200 and "--color-void:#08080a" in css.text and "--color-lavender-beam:#ab8ff1" in css.text
+    assert client.get("/ui/fonts/inter-tight-latin.woff2").content[:4] == b"wOF2"
+
+
+def test_pages_use_only_the_design_palette():
+    import re
+    from pathlib import Path
+
+    ui = Path(__file__).resolve().parents[1] / "cairn" / "ui"
+    allowed = {"#08080a", "#0d0d12", "#17171c", "#25252d", "#31313a", "#62626f", "#8b8e9c", "#aeaac0", "#dad7de",
+               "#ab8ff1", "#8960f0", "#8e6ce4", "#f0707a", "#fff"}
+    for name in ("index.html", "bench.html", "tokens.css"):
+        found = {c.lower() for c in re.findall(r"#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b", (ui / name).read_text(encoding="utf-8"))}
+        assert found <= allowed, f"{name} uses off-palette colours: {sorted(found - allowed)}"
 
 
 # ---- rendering ----------------------------------------------------------------------------------------------

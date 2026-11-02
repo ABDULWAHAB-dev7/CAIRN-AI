@@ -14,9 +14,9 @@ from pathlib import Path
 
 from . import geometry as geo
 
-ZONE_COLORS = {"device": "#2dd4bf", "hand": "#fbbf24", "bench": "#94a3b8"}
-TRAY_COLOR = "#60a5fa"
-LOST_COLOR = "#f87171"
+ZONE_COLORS = {"device": "#aeaac0", "hand": "#dad7de", "bench": "#8b8e9c"}  # pearl / chalk / fog
+TRAY_COLOR = "#ab8ff1"  # lavender beam
+LOST_COLOR = "#f0707a"  # critical: the one non-violet colour
 
 
 class FrameStore:
@@ -107,16 +107,16 @@ def render_png(row: dict | None, session, size=(960, 600), highlight_well: int |
     if background:  # a real camera frame: draw only the quiet outlines on top of it
         img = Image.open(io.BytesIO(background)).convert("RGB").resize((w, h))
     else:
-        img = Image.new("RGB", (w, h), "#0f1419")
+        img = Image.new("RGB", (w, h), "#08080a")
     d = ImageDraw.Draw(img)
     if not background:
         for x in range(0, w, 40):
-            d.line([(x, 0), (x, h)], fill="#161d26")
+            d.line([(x, 0), (x, h)], fill="#0d0d12")
         for y in range(0, h, 40):
-            d.line([(0, y), (w, y)], fill="#161d26")
-        d.rectangle(geo.MARKER, outline="#e2e8f0", width=2)
-        d.rectangle([geo.MARKER[0] + 8, geo.MARKER[1] + 8, geo.MARKER[2] - 20, geo.MARKER[3] - 20], fill="#e2e8f0")
-    d.rectangle(geo.DEVICE, outline="#334155", width=1)
+            d.line([(0, y), (w, y)], fill="#0d0d12")
+        d.rectangle(geo.MARKER, outline="#dad7de", width=2)
+        d.rectangle([geo.MARKER[0] + 8, geo.MARKER[1] + 8, geo.MARKER[2] - 20, geo.MARKER[3] - 20], fill="#dad7de")
+    d.rectangle(geo.DEVICE, outline="#25252d", width=1)
     small, tiny = _font(11), _font(10)
     filled = set()
     if row:
@@ -125,9 +125,9 @@ def render_png(row: dict | None, session, size=(960, 600), highlight_well: int |
                 filled.add(det["well"])
     for n, r in geo.all_wells().items():
         hl = n == highlight_well
-        d.rectangle(r, outline="#fbbf24" if hl else "#2a3441", width=3 if hl else 1,
-                    fill="#1b2430" if n in filled and not background else None)
-        d.text((r[0] + 3, r[1] + 2), f"{n:02d}", fill="#64748b", font=tiny)
+        d.rectangle(r, outline="#ab8ff1" if hl else "#25252d", width=3 if hl else 1,
+                    fill="#17171c" if n in filled and not background else None)
+        d.text((r[0] + 3, r[1] + 2), f"{n:02d}", fill="#62626f", font=tiny)
     if row:
         for det in row["detections"]:
             box = det.get("box")
@@ -139,8 +139,8 @@ def render_png(row: dict | None, session, size=(960, 600), highlight_well: int |
             d.text((box[0], max(0, box[1] - 13)), text if full else text.split(" · ")[0],
                    fill=color, font=small if full else tiny)  # full label for big/in-hand; code for resting screws
     if caption:
-        d.rectangle([0, h - 26, w, h], fill="#0b1016")
-        d.text((10, h - 20), caption, fill="#cbd5e1", font=small)
+        d.rectangle([0, h - 26, w, h], fill="#0d0d12")
+        d.text((10, h - 20), caption, fill="#aeaac0", font=small)
     if size != (w, h):
         img = img.resize(size)
     buf = io.BytesIO()

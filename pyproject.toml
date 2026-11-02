@@ -21,7 +21,7 @@ build-backend = "setuptools.build_meta"
 packages = ["cairn"]
 
 [tool.setuptools.package-data]
-cairn = ["ui/*.html"]
+cairn = ["ui/*.html", "ui/*.css", "ui/fonts/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
