@@ -6,7 +6,7 @@ The SAM 3.1 backend itself is not bundled: it needs Meta Model API access and a 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
@@ -43,11 +43,28 @@ class ZoneMap:
     trays: dict[str, Box]
     device: Box
     hand_label: str = "hand"
+    wells: dict[int, Box] = field(default_factory=dict)  # numbered tray wells (01-24)
+    well_zone: dict[int, str] = field(default_factory=dict)  # well number -> tray zone name
+
+    @classmethod
+    def default(cls, device) -> "ZoneMap":
+        """Calibration from the shared bench geometry (cairn.geometry), for the demo bench."""
+        from . import geometry as geo
+
+        zone = {w: t for t, ws in device.wells.items() for w in ws}
+        return cls(trays={}, device=geo.DEVICE, wells=geo.all_wells(), well_zone=zone)
+
+    def well_for(self, box: Box) -> int | None:
+        c = _center(box)
+        return next((n for n, r in self.wells.items() if _inside(c, r)), None)
 
     def zone_for(self, box: Box, hands: list[Box]) -> str:
         c = _center(box)
         if any(_inside(c, h) for h in hands):
             return "hand"
+        n = self.well_for(box)
+        if n is not None:
+            return self.well_zone.get(n, f"tray_{n}")
         for name, rect in self.trays.items():
             if _inside(c, rect):
                 return name
@@ -63,7 +80,8 @@ class Sam31Perception:
         raw = self.backend.track(image, prompts)
         hands = [r.box for r in raw if r.label == self.zones.hand_label]
         dets = tuple(
-            Detection(r.track_id, self.prompt_to_class[r.label], self.zones.zone_for(r.box, hands), r.score)
+            Detection(r.track_id, self.prompt_to_class[r.label], self.zones.zone_for(r.box, hands), r.score,
+                      xy=_center(r.box), box=r.box, well=self.zones.well_for(r.box))
             for r in raw if r.label in self.prompt_to_class
         )
         return Frame(frame_id, ts, dets)

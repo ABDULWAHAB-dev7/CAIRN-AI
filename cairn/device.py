@@ -13,6 +13,7 @@ class PartSpec:
     tray: str
     size_mm: float | None = None
     hole: str | None = None  # fasteners: the hole this fastener came from
+    well: int | None = None  # fasteners: home well (01-24) in the tray
     fastens: str | None = None  # fasteners: component it holds
     requires_power_off: bool = True
 
@@ -35,6 +36,7 @@ class Device:
     parts: dict[str, PartSpec]
     steps: tuple[StepSpec, ...]
     trays: dict[str, str] = field(default_factory=dict)  # tray slot -> part class
+    wells: dict[str, tuple[int, ...]] = field(default_factory=dict)  # tray slot -> well numbers
 
     def __post_init__(self):
         self._step_by_id = {s.id: s for s in self.steps}
@@ -57,6 +59,10 @@ class Device:
     def fasteners(self) -> list[PartSpec]:
         return [p for p in self.parts.values() if p.kind == "fastener"]
 
+    def code(self, pid: str) -> str:
+        """Short stable id shown on the overlay, e.g. p_04."""
+        return f"p_{list(self.parts).index(pid) + 1:02d}"
+
     def tray_for(self, cls: str) -> str:
         return next(p.tray for p in self.parts.values() if p.cls == cls)
 
@@ -72,12 +78,16 @@ def demo_laptop() -> Device:
         for pid, label, power in items:
             parts[pid] = PartSpec(pid, pid, label, "component", "bench", requires_power_off=power)
 
+    next_well = [1]
+
     def screws(cls, label, n, size, tray, fastens, power=True):
         for i in range(1, n + 1):
             pid = f"{cls}_{i:02d}"
             parts[pid] = PartSpec(
-                pid, cls, label, "fastener", tray, size, f"{fastens}.{cls}.{i:02d}", fastens, power
+                pid, cls, label, "fastener", tray, size_mm=size, hole=f"{fastens}.{cls}.{i:02d}",
+                well=next_well[0], fastens=fastens, requires_power_off=power,
             )
+            next_well[0] += 1
 
     components(
         ("base_cover", "base cover", False),
@@ -118,7 +128,11 @@ def demo_laptop() -> Device:
                  removes=ids("hinge_screw") + ("hinge_bracket",), requires=("t06",)),
     )
     trays = {p.tray: p.cls for p in parts.values() if p.kind == "fastener"}
-    return Device("demo_laptop", "Demo laptop (23 fasteners)", parts, steps, trays)
+    wells: dict[str, tuple[int, ...]] = {}
+    for p in parts.values():
+        if p.kind == "fastener":
+            wells[p.tray] = wells.get(p.tray, ()) + (p.well,)
+    return Device("demo_laptop", "Demo laptop (23 fasteners)", parts, steps, trays, wells)
 
 
 DEVICES = {"demo_laptop": demo_laptop}

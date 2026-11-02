@@ -13,24 +13,29 @@ Config (environment):
 from __future__ import annotations
 
 import asyncio
+import base64
 import dataclasses
 import hmac
+import html
 import json
 import os
 import re
 import threading
 import time
 import uuid
+from collections import deque
 from pathlib import Path
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import __version__, passport, safety
 from .agent import Agent, DeterministicAgent, SafeAgent, WonderAgent
 from .device import DEVICES, get_device
-from .events import EventLog
+from .events import Event, EventLog
+from .frames import FrameStore, render_png
+from .timeline import build_timeline
 from .perception import Sam31Perception, ZoneMap
 from .scenarios import hero_demo
 from .session import Detection, Frame, Session
@@ -44,6 +49,7 @@ class NewSession(BaseModel):
     technician: str = Field(min_length=1, max_length=80)
     bench: str = Field(default="bench_01", min_length=1, max_length=80)
     device: str = "demo_laptop"
+    job_number: str | None = Field(default=None, max_length=40)
 
 
 class DetectionIn(BaseModel):
@@ -65,6 +71,7 @@ class TapIn(BaseModel):
     part_id: str
     zone: str = Field(pattern=ZONE_RE)
     hole: str | None = None
+    well: int | None = Field(default=None, ge=1, le=24)
     ts: float | None = None
 
 
@@ -106,24 +113,35 @@ class GuardIn(BaseModel):
 class PassportIn(BaseModel):
     technician: str | None = None
     ts: float | None = None
+    accept_exceptions: bool = False
+    note: str | None = Field(default=None, max_length=1000)
 
 
 # ---- runtime -------------------------------------------------------------------------------------
 class Runtime:
-    def __init__(self, sid: str, session: Session):
-        self.id, self.session, self.lock = sid, session, threading.Lock()
+    def __init__(self, sid: str, session: Session, frames: FrameStore):
+        self.id, self.session, self.frames, self.lock = sid, session, frames, threading.Lock()
+        self.alerts: deque = deque(maxlen=60)
+        session.frame_sink = frames.append
 
     def meta(self) -> dict:
         g = self.session.graph
         return {"id": self.id, "device": g.device.id, "technician": g.registration.get("technician"),
-                "bench": g.registration.get("bench"), "phase": g.phase().value,
-                "events": len(self.session.log), "verified": g.verified}
+                "bench": g.registration.get("bench"), "job_number": g.registration.get("job_number"),
+                "phase": g.phase().value, "events": g.seq, "verified": g.verified,
+                "closed": "verified" if g.verified else "with_exceptions"
+                if g.closed_with_exceptions is not None else None}
+
+    def push(self, alerts) -> None:
+        for a in alerts:
+            if a.kind not in ("step_done", "step_verified"):
+                self.alerts.append(dataclasses.asdict(a))
 
 
 class Hub:
     def __init__(self, data_dir: Path):
         self.dir = data_dir
-        for sub in ("sessions", "passports", "keys"):
+        for sub in ("sessions", "passports", "keys", "frames"):
             (self.dir / sub).mkdir(parents=True, exist_ok=True)
         self.items: dict[str, Runtime] = {}
         self._lock = threading.Lock()
@@ -136,11 +154,13 @@ class Hub:
         first = next(iter(log.events()), None)
         if first is None or first.type != "device_registered":
             return
-        self.items[f.stem] = Runtime(f.stem, Session(get_device(first.payload["device_id"]), log))
+        self.items[f.stem] = Runtime(f.stem, Session(get_device(first.payload["device_id"]), log),
+                                     FrameStore(self.dir / "frames", f.stem))
 
     def create(self, technician: str, bench: str, device: str, log_id: str | None = None) -> Runtime:
         sid = log_id or uuid.uuid4().hex[:12]
-        rt = Runtime(sid, Session(get_device(device), EventLog(str(self.dir / "sessions" / f"{sid}.db"))))
+        rt = Runtime(sid, Session(get_device(device), EventLog(str(self.dir / "sessions" / f"{sid}.db"))),
+                     FrameStore(self.dir / "frames", sid))
         with self._lock:
             self.items[sid] = rt
         return rt
@@ -168,6 +188,11 @@ def _alerts(alerts) -> list[dict]:
     return [dataclasses.asdict(a) for a in alerts]
 
 
+def _out(rt: Runtime, alerts) -> dict:
+    rt.push(alerts)
+    return {"alerts": _alerts(alerts), "recap": rt.session.recap(), "top": rt.session.top_strip()}
+
+
 def make_agent(kind: str, privacy_local: bool) -> Agent:
     if kind == "wonder":
         if privacy_local:
@@ -189,12 +214,16 @@ def make_perception(kind: str, privacy_local: bool, zones_file: str | None):
         raise RuntimeError(f"unknown CAIRN_PERCEPTION {kind!r}")
     if privacy_local:
         raise RuntimeError("CAIRN_PRIVACY=local forbids sending bench images to the cloud SAM API")
-    if not zones_file:
-        raise RuntimeError("CAIRN_PERCEPTION=sam needs CAIRN_ZONES (tray and device calibration)")
     from .meta_api import MetaClient, Sam31Backend
-    cfg = json.loads(Path(zones_file).read_text(encoding="utf-8"))
-    zones = ZoneMap({k: tuple(v) for k, v in cfg["trays"].items()}, tuple(cfg["device"]))
-    return Sam31Perception(Sam31Backend(MetaClient()), zones, cfg["prompts"])
+    if zones_file:
+        cfg = json.loads(Path(zones_file).read_text(encoding="utf-8"))
+        zones = ZoneMap({k: tuple(v) for k, v in cfg["trays"].items()}, tuple(cfg["device"]))
+        prompts = cfg["prompts"]
+    else:  # the demo bench geometry (cairn.geometry) and one prompt per part class
+        dev = get_device("demo_laptop")
+        zones = ZoneMap.default(dev)
+        prompts = {c.replace("_", " "): c for c in dev.classes()}
+    return Sam31Perception(Sam31Backend(MetaClient()), zones, prompts)
 
 
 def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, perception=None,
@@ -233,7 +262,8 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
             rt = hub.create(body.technician, body.bench, body.device)
         except KeyError as e:
             raise HTTPException(422, str(e).strip("'\""))
-        rt.session.register(time.time(), body.technician, body.bench)
+        extra = {"job_number": body.job_number} if body.job_number else {}
+        rt.session.register(time.time(), body.technician, body.bench, **extra)
         return {**rt.meta(), "snapshot": rt.session.snapshot()}
 
     @app.post("/demo", status_code=201, dependencies=secured)
@@ -241,10 +271,11 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
         """Create a session and drive the scripted hero demo into it (dev, demos, UI testing)."""
         sid = uuid.uuid4().hex[:12]
         log = EventLog(str(hub.dir / "sessions" / f"{sid}.db"))
+        store = FrameStore(hub.dir / "frames", sid)
         bench = None
-        for _, bench in hero_demo(log):
+        for _, bench in hero_demo(log, sink=store.append, job="J-1042"):
             pass
-        rt = Runtime(sid, bench.session)
+        rt = Runtime(sid, bench.session, store)
         hub.items[sid] = rt
         return {**rt.meta(), "snapshot": rt.session.snapshot()}
 
@@ -256,7 +287,7 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
     def get_session(sid: str):
         rt = hub.get(sid)
         with rt.lock:
-            return {**rt.meta(), "snapshot": rt.session.snapshot()}
+            return {**rt.meta(), "snapshot": rt.session.snapshot(), "recent_alerts": list(rt.alerts)}
 
     @app.get("/sessions/{sid}/events", dependencies=secured)
     def get_events(sid: str, after: int = Query(0, ge=0), limit: int = Query(500, ge=1, le=5000)):
@@ -299,7 +330,7 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
             f = Frame(body.frame_id, ts, tuple(Detection(d.track_id, d.cls, d.zone, d.confidence, d.hole, d.xy)
                                                for d in body.detections))
             alerts = rt.session.observe(f)
-            return {"alerts": _alerts(alerts), "recap": rt.session.recap()}
+            return _out(rt, alerts)
 
     @app.post("/sessions/{sid}/image", dependencies=secured)
     async def post_image(sid: str, request: Request, frame_id: str | None = None, ts: float | None = None):
@@ -316,16 +347,17 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
         except Exception as e:
             raise HTTPException(502, f"perception failed: {type(e).__name__}: {e}")
         with rt.lock:
+            rt.frames.save_image(frame.frame_id, image)
             alerts = rt.session.observe(frame)
-            return {"alerts": _alerts(alerts), "detections": len(frame.detections), "recap": rt.session.recap()}
+            return {**_out(rt, alerts), "detections": len(frame.detections), "frame_id": frame.frame_id}
 
     @app.post("/sessions/{sid}/taps", dependencies=secured)
     def post_tap(sid: str, body: TapIn):
         rt = hub.get(sid)
         _check_parts(rt, body.part_id)
         with rt.lock:
-            alerts = rt.session.observe_manual(body.part_id, body.zone, _now(rt, body.ts), body.hole)
-            return {"alerts": _alerts(alerts), "recap": rt.session.recap()}
+            alerts = rt.session.observe_manual(body.part_id, body.zone, _now(rt, body.ts), body.hole, body.well)
+            return _out(rt, alerts)
 
     @app.post("/sessions/{sid}/steps", dependencies=secured)
     def post_step(sid: str, body: StepIn):
@@ -339,14 +371,14 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
             raise HTTPException(422, "only action steps (ESD, battery) are logged by voice or tap")
         with rt.lock:
             alerts = rt.session.complete_step(body.step_id, _now(rt, body.ts), "api")
-            return {"alerts": _alerts(alerts), "recap": rt.session.recap()}
+            return _out(rt, alerts)
 
     @app.post("/sessions/{sid}/hazard", dependencies=secured)
     def post_hazard(sid: str, body: HazardIn):
         rt = hub.get(sid)
         with rt.lock:
             alerts = rt.session.report_hazard(body.kind, _now(rt, body.ts))
-            return {"alerts": _alerts(alerts), "recap": rt.session.recap()}
+            return _out(rt, alerts)
 
     @app.delete("/sessions/{sid}/hazard", dependencies=secured)
     def clear_hazard(sid: str, body: NoteIn):
@@ -415,22 +447,37 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
         return dataclasses.asdict(v)
 
     # ---- passport -----------------------------------------------------------------------------
-    @app.post("/sessions/{sid}/passport", dependencies=secured)
-    def issue_passport(sid: str, body: PassportIn = Body(default_factory=PassportIn)):
-        rt = hub.get(sid)
-        path = hub.passport_path(sid)
+    def _frame_png(rt: Runtime, fid: str) -> bytes | None:
+        row, img = rt.frames.row(fid), rt.frames.image(fid)
+        if row is None and img is None:
+            return None
+        return render_png(row, rt.session, background=img)
+
+    def _close(rt: Runtime, request: Request, body: PassportIn) -> dict:
+        path = hub.passport_path(rt.id)
         with rt.lock:
             if path.exists():  # idempotent: a signed passport is never re-signed
                 return json.loads(path.read_text(encoding="utf-8"))
             g = rt.session.graph
             tech = body.technician or g.registration.get("technician") or "unknown"
+            base = (os.environ.get("CAIRN_PUBLIC_URL") or str(request.base_url)).rstrip("/")
             try:
                 p = passport.issue(rt.session, tech, hub.signer(g.registration.get("bench", "bench")),
-                                   _now(rt, body.ts))
+                                   _now(rt, body.ts), accept_exceptions=body.accept_exceptions, note=body.note,
+                                   frame_png=lambda fid: _frame_png(rt, fid), verify_url=f"{base}/v/{rt.id}")
             except passport.PassportRefused as e:
-                raise HTTPException(409, {"error": "invariants not satisfied", "reasons": e.reasons})
+                raise HTTPException(409, {"error": "close blocked: invariants not satisfied", "reasons": e.reasons})
             path.write_text(passport.dumps(p), encoding="utf-8")
             return p
+
+    @app.post("/sessions/{sid}/passport", dependencies=secured)
+    def issue_passport(sid: str, request: Request, body: PassportIn = Body(default_factory=PassportIn)):
+        return _close(hub.get(sid), request, body)
+
+    @app.post("/sessions/{sid}/close", dependencies=secured)
+    def close_job(sid: str, request: Request, body: PassportIn = Body(default_factory=PassportIn)):
+        """Close the job: VERIFIED, blocked (409 with reasons), or CLOSED WITH EXCEPTIONS if accepted."""
+        return _close(hub.get(sid), request, body)
 
     def _stored(sid: str) -> dict:
         hub.get(sid)
@@ -465,9 +512,90 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
         from .events import Event
         try:
             events = [Event(**e) for e in body["events"]] if body.get("events") is not None else None
-            ok, problems = passport.verify({"body": body["body"], "signature": body["signature"]}, events)
+            ok, problems = passport.verify({"body": body["body"], "signature": body["signature"],
+                                       "attachments": body.get("attachments") or {}}, events)
         except (KeyError, TypeError, ValueError, IndexError) as e:
             raise HTTPException(422, f"malformed passport or events: {type(e).__name__}")
         return {"valid": ok, "problems": problems}
+
+    # ---- the single-view bench screen ---------------------------------------------------------
+    @app.post("/sessions/{sid}/baseline", dependencies=secured)
+    async def post_baseline(sid: str, request: Request):
+        """Attach a camera frame of the sealed device as the job's baseline."""
+        rt = hub.get(sid)
+        image = await request.body()
+        if not image:
+            raise HTTPException(422, "empty image body")
+        with rt.lock:
+            rt.frames.save_image("baseline", image)
+            rt.session.baseline(_now(rt, None), "baseline")
+        return {"frame_id": "baseline"}
+
+    @app.get("/sessions/{sid}/timeline", dependencies=secured)
+    def timeline(sid: str):
+        rt = hub.get(sid)
+        with rt.lock:
+            return {"entries": build_timeline(rt.session.device, rt.session.log.events())}
+
+    @app.get("/sessions/{sid}/at/{seq}", dependencies=secured)
+    def state_at(sid: str, seq: int):
+        """Everything the screen shows, as it was right after event `seq` (click a timeline entry)."""
+        rt = hub.get(sid)
+        with rt.lock:
+            events = rt.session.log.events()
+            if not 0 <= seq <= len(events):
+                raise HTTPException(404, "no such event")
+            part = events[:seq]
+            snap = Session.replica(rt.session.device, part).snapshot()
+            ts = part[-1].ts if part else 0.0
+            row = rt.frames.at_or_before(ts)
+            ev = events[seq - 1] if seq else None
+            fid = (ev.payload.get("frame") if ev else None) or (row["frame_id"] if row else None)
+            return {"seq": seq, "ts": ts, "snapshot": snap, "frame_id": fid}
+
+    @app.get("/sessions/{sid}/frames/{name}", dependencies=secured)
+    def frame_image(sid: str, name: str, well: int | None = Query(None, ge=1, le=24), raw: bool = False):
+        """`latest.png` or `<frame_id>.png`: the camera image with quiet outlines, or the drawn bench."""
+        rt = hub.get(sid)
+        fid = name[:-4] if name.endswith(".png") else name
+        with rt.lock:
+            row = rt.frames.latest() if fid == "latest" else rt.frames.row(fid)
+            img = rt.frames.image(row["frame_id"] if row else fid)
+            if row is None and img is None and fid != "latest":
+                raise HTTPException(404, "no such frame")
+            if raw and img:
+                return Response(img, media_type="image/jpeg")
+            png = render_png(row, rt.session, highlight_well=well, background=img)
+        return Response(png, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+    @app.get("/v/{sid}", response_class=HTMLResponse)
+    def public_verify(sid: str):
+        """Target of the passport QR code. Public by design: shows only the verdict and summary."""
+        rt = hub.get(sid)
+        path = hub.passport_path(sid)
+        if not path.exists():
+            raise HTTPException(404, "this job has no passport yet")
+        p = json.loads(path.read_text(encoding="utf-8"))
+        ok, problems = passport.verify(p, rt.session.log.events())
+        b, esc = p["body"], html.escape
+        verdict = "RECORD INTACT" if ok else "RECORD DOES NOT VERIFY"
+        color = "#0f766e" if ok else "#b91c1c"
+        note = esc("; ".join(problems)) if problems else "Signature and hash chain checked against the event log."
+        return (
+            "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<title>Cairn passport check</title>"
+            "<body style='font:16px system-ui;max-width:560px;margin:2rem auto;padding:0 1rem'>"
+            f"<h1 style='color:{color}'>{verdict}</h1>"
+            f"<p><b>{esc(b['status'])}</b> &middot; job {esc(str(b.get('job_number') or '-'))}"
+            f" &middot; {esc(b['device']['label'])}</p>"
+            f"<p>{b['counts']['fasteners_accounted']}/{b['counts']['fasteners_total']} fasteners, "
+            f"{b['counts']['extra_parts']} extra parts, {len(b['exceptions'])} exceptions recorded.</p>"
+            f"<p style='color:#64748b;font-size:13px'>{note}<br>"
+            f"Chain head {esc(b['event_chain']['head'][:24])}&hellip;</p>")
+
+    @app.get("/", include_in_schema=False)
+    @app.get("/bench", include_in_schema=False)
+    def bench_ui():
+        return FileResponse(Path(__file__).parent / "ui" / "bench.html")
 
     return app

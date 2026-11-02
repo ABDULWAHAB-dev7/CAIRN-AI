@@ -9,6 +9,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
+from . import geometry as geo
 from .device import Device, demo_laptop
 from .events import EventLog
 from .session import Alert, Detection, Frame, Session
@@ -41,13 +42,14 @@ class Bench:
         self.xy = {pid: self._home(pid, "device") for pid in self.device.parts}
 
     def _home(self, pid: str, zone: str) -> tuple[float, float]:
-        i = self.index[pid]
+        i, spec = self.index[pid], self.device.parts[pid]
         if zone == "device":
-            return (100.0 + (i % 6) * 55, 200.0 + (i // 6) * 55)
+            return (geo.DEVICE[0] + 30 + (i % 8) * 55, geo.DEVICE[1] + 30 + (i // 8) * 55)
         if zone.startswith("tray_"):
-            k = int(zone.split("_")[1])
-            return (640.0 + (k % 3) * 90 + (i % 4) * 14, 90.0 + (k // 3) * 90 + (i % 3) * 14)
-        return (420.0 + (i % 5) * 40, 520.0)
+            wells = self.device.wells.get(zone, ())
+            n = spec.well if spec.tray == zone and spec.well else (wells[0] if wells else 1)
+            return geo.well_center(n)
+        return (geo.BENCH_AREA[0] + 30 + (i % 6) * 55, geo.BENCH_AREA[1] + 30 + ((i // 6) % 3) * 55)
 
     # ---- frames -----------------------------------------------------------------------------
     def _hidden(self, pid: str) -> bool:
@@ -72,8 +74,12 @@ class Bench:
             spec = self.device.parts[pid]
             x, y = self.xy[pid]
             jitter = (self.rng.uniform(-1.5, 1.5), self.rng.uniform(-1.5, 1.5))
-            dets.append(Detection(self._track(pid), spec.cls, self.truth[pid], 0.95,
-                                  self.aim.get(pid), (x + jitter[0], y + jitter[1])))
+            x, y = x + jitter[0], y + jitter[1]
+            r = 8 if spec.kind == "fastener" else 26
+            zone = self.truth[pid]
+            well = spec.well if zone == spec.tray and zone.startswith("tray_") else None
+            dets.append(Detection(self._track(pid), spec.cls, zone, 0.95, self.aim.get(pid),
+                                  (x, y), (x - r, y - r, x + r, y + r), well))
         for tid, (cls, zone) in self.extras.items():
             dets.append(Detection(tid, cls, zone, 0.9))
         self.frame_n += 1
@@ -143,7 +149,7 @@ class Bench:
 
 
 def chaos_session(seed: int, faults: frozenset[str] = frozenset(), p_dropout=0.02, p_churn=0.01,
-                  log: EventLog | None = None, boot_ok: bool = True) -> Bench:
+                  log: EventLog | None = None, boot_ok: bool = True, sink=None) -> Bench:
     """One full teardown + reassembly, with optional injected faults. Returns the finished bench.
 
     faults: "drop" (a screw falls), "skip_battery" (reach for the SSD with power on),
@@ -151,6 +157,7 @@ def chaos_session(seed: int, faults: frozenset[str] = frozenset(), p_dropout=0.0
     """
     dev = demo_laptop()
     s = Session(dev, log)
+    s.frame_sink = sink
     b = Bench(s, seed=seed, p_dropout=p_dropout, p_churn=p_churn)
     s.register(b.t, technician="tech_a", bench="bench_02")
     b.run(2)
@@ -186,13 +193,14 @@ def chaos_session(seed: int, faults: frozenset[str] = frozenset(), p_dropout=0.0
     return b
 
 
-def hero_demo(log: EventLog | None = None):
+def hero_demo(log: EventLog | None = None, sink=None, technician: str = "tech_a", job: str | None = None):
     """The three-minute story: a mistake, a memory, a proof. Yields (label, bench) checkpoints."""
     dev = demo_laptop()
     log = EventLog() if log is None else log
     s = Session(dev, log)
+    s.frame_sink = sink
     b = Bench(s, seed=7)
-    s.register(b.t, technician="tech_a", bench="bench_02")
+    s.register(b.t, technician=technician, bench="bench_02", **({"job_number": job} if job else {}))
     b.run(3)
     yield "intro", b
     for step_id in ("t01", "t02", "t03"):
@@ -212,6 +220,7 @@ def hero_demo(log: EventLog | None = None):
     # Hero moment: the return.
     b.t += 1800
     b.session = Session(dev, log)  # a fresh process: nothing but the event log survives lunch
+    b.session.frame_sink = sink
     b.run(1)
     yield "returned_from_lunch", b
     b.find("battery_screw_01", "tray_2")
