@@ -6,6 +6,7 @@ the safety kernel, ordering checks and exceptions. The model never writes to the
 from __future__ import annotations
 
 import math
+import time
 from dataclasses import dataclass
 
 from . import invariants, safety
@@ -25,6 +26,8 @@ class Detection:
     confidence: float = 1.0
     hole: str | None = None  # hole the part is being aimed at / sits in, when known
     xy: tuple[float, float] | None = None  # box centre; breaks re-ID ties (dropout vs new track)
+    box: tuple[float, float, float, float] | None = None  # outline for the overlay
+    well: int | None = None  # tray well the part sits in, when zone is a tray
 
 
 @dataclass(frozen=True)
@@ -42,6 +45,7 @@ class Alert:
     part_id: str | None = None
     rule: str | None = None
     ts: float = 0.0
+    well: int | None = None  # well the overlay should pulse
 
 
 def _mm(x: float | None) -> str:
@@ -58,13 +62,25 @@ class Session:
         self.part_track: dict[str, str] = {}
         self.last_seen: dict[str, float] = {}
         self.last_xy: dict[str, tuple[float, float]] = {}
+        self.last_box: dict[str, tuple[float, float, float, float]] = {}
+        self.head = self.log.head()
+        self.frame_sink = None  # optional callable(Frame): the server keeps frames for the timeline
         self.extra_tracks: set[str] = set()
         self._warned: set[tuple] = set()
         for e in self.log.events():  # memory survives a lunch break: rebuild from the log
             self._fold(e)
 
     # ---- event plumbing ---------------------------------------------------------------------
+    @classmethod
+    def replica(cls, device: Device, events: list[Event]) -> "Session":
+        """A read-only Session folded from some events (state at an earlier moment). Never append to it."""
+        s = cls(device, EventLog())
+        for e in events:
+            s._fold(e)
+        return s
+
     def _fold(self, e: Event) -> None:
+        self.head = e.hash
         self.graph.apply(e)
         if e.type in ("part_zone", "track_bound") and e.payload.get("track_id"):
             self.track_map[e.payload["track_id"]] = e.payload["part_id"]
@@ -83,6 +99,15 @@ class Session:
         self._emit(ts, "device_registered",
                    {"device_id": self.device.id, "device_label": self.device.label,
                     "technician": technician, "bench": bench, **extra})
+        self.baseline(ts)
+
+    def baseline(self, ts: float, frame_id: str | None = None) -> None:
+        """Snapshot of the sealed device: the inventory every later claim is measured against."""
+        expected: dict[str, int] = {}
+        for p in self.device.parts.values():
+            expected[p.cls] = expected.get(p.cls, 0) + 1
+        self._emit(ts, "baseline", {"expected": expected, "parts": len(self.device.parts),
+                                    "fasteners": len(self.device.fasteners()), "frame": frame_id})
 
     def _raise(self, ts, type_, severity, detail, part_id=None, step_id=None, evidence=(),
                track_id=None) -> str | None:
@@ -113,6 +138,8 @@ class Session:
     # ---- perception in ----------------------------------------------------------------------
     def observe(self, frame: Frame) -> list[Alert]:
         alerts: list[Alert] = []
+        if self.frame_sink:
+            self.frame_sink(frame)
         tracks_now = {d.track_id for d in frame.detections}
         claimed: set[str] = set()
         for det in frame.detections:
@@ -126,16 +153,19 @@ class Session:
             self.last_seen[pid] = frame.ts
             if det.xy:
                 self.last_xy[pid] = det.xy
+            if det.box:
+                self.last_box[pid] = det.box
             self._zone_update(self.graph.parts[pid], det.zone, det.hole, frame.ts,
-                              frame.frame_id, det.confidence, det.track_id, alerts)
+                              frame.frame_id, det.confidence, det.track_id, alerts, well=det.well)
         alerts += self.tick(frame.ts)
         return alerts
 
-    def observe_manual(self, part_id: str, zone: str, ts: float, hole: str | None = None) -> list[Alert]:
+    def observe_manual(self, part_id: str, zone: str, ts: float, hole: str | None = None,
+                       well: int | None = None) -> list[Alert]:
         """Human-confirmed memory: the fallback when perception fails. Same policy, tap as input."""
         alerts: list[Alert] = []
         self.last_seen[part_id] = ts
-        self._zone_update(self.graph.parts[part_id], zone, hole, ts, f"tap@{ts:g}", 1.0, None, alerts)
+        self._zone_update(self.graph.parts[part_id], zone, hole, ts, f"tap@{ts:g}", 1.0, None, alerts, well=well)
         alerts += self.tick(ts)
         return alerts
 
@@ -173,7 +203,7 @@ class Session:
 
     # ---- the policy core --------------------------------------------------------------------
     def _zone_update(self, node: PartNode, zone: str, hole, ts, frame_id, conf, track_id,
-                     alerts: list[Alert]) -> None:
+                     alerts: list[Alert], well: int | None = None) -> None:
         spec, pid, state, prior_zone = node.spec, node.spec.id, node.state, node.zone
         if state == PartState.RETIRED:
             return
@@ -184,6 +214,8 @@ class Session:
         payload = {"part_id": pid, "zone": zone, "confidence": conf, "frame": frame_id}
         if track_id:
             payload["track_id"] = track_id
+        if well:
+            payload["well"] = well
         step_id = self.device.step_of_part.get(pid)
         step = self.device.step(step_id) if step_id else None
 
@@ -211,11 +243,14 @@ class Session:
             self._step_alert(step, ts, alerts, reverse=False)
         else:
             self._emit(ts, "part_zone", payload)
+            if zone.startswith("tray_"):
+                self._auto_resolve(ts, pid, ("wrong_fastener",), "returned to its tray before installing")
             if state == PartState.LOST:
                 self._auto_resolve(ts, pid, ("missing_part",), "found again")
                 alerts.append(Alert("found", f"Found the {spec.label}.", "info", pid, ts=ts))
             if zone.startswith("tray_") and spec.kind == "fastener" and zone != spec.tray:
-                alerts.append(Alert("wrong_tray", f"That {spec.label} goes in {spec.tray}.", "info", pid, ts=ts))
+                alerts.append(Alert("wrong_tray", f"That {spec.label} goes in {spec.tray.replace('_', ' ')}.",
+                                    "info", pid, ts=ts, well=self._free_well(spec.cls)))
 
     def _removal(self, node: PartNode, step, ts, frame_id) -> list[Alert]:
         pid, spec = node.spec.id, node.spec
@@ -248,15 +283,23 @@ class Session:
         spec = node.spec
         if target is None or target.cls == spec.cls:
             return False
+        well = self._free_well(target.cls)
         msg = (f"That's a {_mm(spec.size_mm)} {spec.label}. That hole takes a {_mm(target.size_mm)}. "
-               f"Try {self.device.tray_for(target.cls).replace('_', ' ')}.")
+               f"Tray {well:02d}.")
         if install:
             self._raise(ts, "wrong_fastener", "medium", msg, part_id=spec.id, evidence=[frame_id])
-            alerts.append(Alert("wrong_fastener", msg, "warn", spec.id, ts=ts))
+            alerts.append(Alert("wrong_fastener", msg, "warn", spec.id, ts=ts, well=well))
         elif (spec.id, hole) not in self._warned:
             self._warned.add((spec.id, hole))
-            alerts.append(Alert("wrong_fastener", msg, "warn", spec.id, ts=ts))
+            self._raise(ts, "wrong_fastener", "medium", msg, part_id=spec.id, evidence=[frame_id])
+            alerts.append(Alert("wrong_fastener", msg, "warn", spec.id, ts=ts, well=well))
         return True
+
+    def _free_well(self, cls: str) -> int | None:
+        """The first empty tray well for a screw class: the one the overlay pulses."""
+        wells = self.device.wells.get(self.device.tray_for(cls), ())
+        used = {n.well for n in self.graph.parts.values() if n.state == PartState.REMOVED and n.well}
+        return next((w for w in wells if w not in used), wells[0] if wells else None)
 
     def _free_hole(self, cls: str) -> str | None:
         used = {n.hole for n in self.graph.parts.values() if n.state == PartState.REINSTALLED}
@@ -282,12 +325,11 @@ class Session:
             if ts - seen < self.lost_grace_s:
                 continue
             self._emit(ts, "part_lost", {"part_id": pid, "last_seen": seen, "latency_s": round(ts - seen, 3)})
-            tray = n.spec.tray
-            held = sum(1 for m in self.graph.parts.values()
-                       if m.spec.cls == n.spec.cls and m.state == PartState.REMOVED and m.zone == tray)
-            msg = f"That's the {n.spec.label}. It never reached {tray.replace('_', ' ')} ({held} there now). Check the floor."
+            when = time.strftime("%H:%M", time.localtime(seen))
+            msg = (f"{n.spec.label.capitalize()} {self.device.code(pid)} left the bench at {when} "
+                   f"and did not arrive in a tray well.")
             self._raise(ts, "missing_part", "high", msg, part_id=pid, evidence=n.evidence[-1:])
-            alerts.append(Alert("missing_part", msg, "warn", pid, ts=ts))
+            alerts.append(Alert("missing_part", msg, "warn", pid, ts=ts, well=n.spec.well))
         return alerts
 
     # ---- human / explicit inputs --------------------------------------------------------------
@@ -354,14 +396,46 @@ class Session:
             "next": g.next_step(),
         }
 
+    def top_strip(self) -> dict:
+        """The four numbers on the overlay: REMOVED, ACCOUNTED, MISSING, STATE."""
+        g = self.graph
+        out = [n for n in g.parts.values() if n.removed_once]
+        missing = [n for n in out if n.state == PartState.LOST]
+        transit = [n for n in out if n.state == PartState.IN_TRANSIT]
+        return {"removed": len(out), "missing": len(missing),
+                "accounted": len(out) - len(missing) - len(transit),
+                "state": g.phase().value.lower().replace("_", " ")}
+
+    def wells(self) -> list[dict]:
+        """The 24 tray wells: which class each is for, and whether a removed part sits in it."""
+        g = self.graph
+        by_well = {n.well: pid for pid, n in g.parts.items() if n.state == PartState.REMOVED and n.well}
+        out = []
+        for tray, wells in sorted(self.device.wells.items()):
+            for w in wells:
+                pid = by_well.get(w)
+                out.append({"n": w, "tray": tray, "cls": self.device.trays[tray], "filled": pid is not None,
+                            "part": self.device.code(pid) if pid else None})
+        used = {x["n"] for x in out}
+        out += [{"n": n, "tray": None, "cls": None, "filled": False, "part": None}
+                for n in range(1, 25) if n not in used]
+        return sorted(out, key=lambda x: x["n"])
+
     def snapshot(self) -> dict:
         g = self.graph
+        parts = {pid: g.part_json(pid) for pid in g.parts}
+        for pid, pj in parts.items():
+            pj["box"] = self.last_box.get(pid)
         return {
             **self.recap(),
+            "job_number": g.registration.get("job_number"),
+            "top": self.top_strip(),
+            "wells": self.wells(),
+            "closed": "verified" if g.verified else "with_exceptions" if g.closed_with_exceptions is not None else None,
             "counts": g.counts(),
-            "parts": {pid: g.part_json(pid) for pid in g.parts},
+            "parts": parts,
             "exceptions": [vars(x) for x in g.exceptions.values()],
             "invariants": [vars(i) for i in invariants.evaluate(g)],
-            "head": self.log.head(),
-            "events": len(self.log),
+            "head": self.head,
+            "events": self.graph.seq,
         }

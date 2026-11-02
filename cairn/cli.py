@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from pathlib import Path
 
 from . import passport
 from .agent import DeterministicAgent
 from .events import EventLog
+from .frames import FrameStore, render_png
 from .evaluation import format_table, run_eval
 from .scenarios import hero_demo
 
@@ -32,8 +34,10 @@ def cmd_demo(args) -> int:
     if db.exists():
         db.unlink()
     log = EventLog(str(db))
+    shutil.rmtree(out / "frames", ignore_errors=True)
+    store = FrameStore(out / "frames", "demo")
     agent, seen, bench = DeterministicAgent(), 0, None
-    for label, bench in hero_demo(log):
+    for label, bench in hero_demo(log, sink=store.append, job="J-1042"):
         print(f"\n== {NARRATION.get(label, label)}")
         for a in bench.alerts[seen:]:
             if a.kind not in ("step_done", "step_verified"):
@@ -45,7 +49,8 @@ def cmd_demo(args) -> int:
             print(f"   you: {question}\n   cairn: {agent.respond(bench.session, question).text}")
     s = bench.session
     signer = passport.Signer.load_or_create(out / "keys" / "bench_02.pem")
-    p = passport.issue(s, "tech_a", signer, bench.t + 5)
+    p = passport.issue(s, "tech_a", signer, bench.t + 5,
+                       frame_png=lambda fid: render_png(store.row(fid), s) if store.row(fid) else None)
     (out / "passport.json").write_text(passport.dumps(p), encoding="utf-8")
     (out / "passport.html").write_text(passport.to_html(p), encoding="utf-8")
     try:
@@ -61,7 +66,7 @@ def cmd_demo(args) -> int:
 
 
 def cmd_eval(args) -> int:
-    report = run_eval(out=args.out)
+    report = run_eval(out=args.out, sessions_dir=args.sessions)
     print(format_table(report))
     return 0 if all(report["pass"].values()) else 1
 
@@ -74,6 +79,18 @@ def cmd_verify(args) -> int:
     return 0 if ok else 1
 
 
+def cmd_serve(args) -> int:
+    try:
+        import uvicorn
+    except ImportError:
+        print('Install the server extra: pip install -e ".[server]"', file=sys.stderr)
+        return 1
+    from .server import create_app
+
+    uvicorn.run(create_app(args.data), host=args.host, port=args.port)
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="cairn")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -82,11 +99,17 @@ def main(argv=None) -> int:
     d.set_defaults(fn=cmd_demo)
     e = sub.add_parser("eval", help="run the simulated eval harness")
     e.add_argument("--out", default="eval/metrics.json")
+    e.add_argument("--sessions", default=None, help="score recorded sessions in this dir (run_*/) instead of the simulated plan")
     e.set_defaults(fn=cmd_eval)
     v = sub.add_parser("verify", help="verify a passport (and its event log)")
     v.add_argument("passport")
     v.add_argument("--db")
     v.set_defaults(fn=cmd_verify)
+    sv = sub.add_parser("serve", help="run the HTTP backend (env config: see cairn/server.py)")
+    sv.add_argument("--host", default="127.0.0.1")
+    sv.add_argument("--port", type=int, default=8000)
+    sv.add_argument("--data", default=None, help="data dir (default $CAIRN_DATA_DIR or ./data)")
+    sv.set_defaults(fn=cmd_serve)
     args = ap.parse_args(argv)
     return args.fn(args)
 

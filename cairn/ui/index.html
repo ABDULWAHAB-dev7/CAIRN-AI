@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cairn: object permanence for physical work</title>
+<meta name="description" content="Cairn watches a repair bench, remembers every part, stops the dangerous step, and signs the job when it is done right.">
+<link rel="stylesheet" href="/ui/tokens.css">
+<style>
+  .wrap{max-width:var(--page-max);margin:0 auto;padding:0 24px}
+  nav{display:flex;align-items:center;gap:19px;padding:16px 0}
+  .brand{display:flex;align-items:center;gap:10px;border:0;color:var(--color-chalk);font:500 20px/1 var(--font-display);letter-spacing:0;margin-right:auto}
+  .brand:hover{border:0}.brand svg{display:block}
+  nav a.l{border:0;color:var(--color-pearl);font-size:14px;font-weight:500}nav a.l:hover{color:var(--color-chalk)}
+  /* hero */
+  .hero{position:relative;overflow:hidden;text-align:center;min-height:86vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px 118px}
+  .aurora{position:absolute;left:50%;bottom:-38%;width:min(1400px,140vw);aspect-ratio:1;transform:translateX(-50%);pointer-events:none;
+    background:radial-gradient(circle,rgb(142,108,228) 0%,rgb(114,79,201) 22%,rgba(114,79,201,.35) 42%,transparent 66%);filter:blur(40px);opacity:.62;animation:drift 14s ease-in-out infinite alternate}
+  @keyframes drift{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-47%) scale(1.06)}}
+  .hero>*:not(.aurora){position:relative;z-index:1}
+  .hero h1{font-size:clamp(40px,8vw,64px);line-height:.99;letter-spacing:-.063em;margin:26px 0 22px;max-width:15ch}
+  .hero p{font-size:var(--text-subheading);letter-spacing:var(--tracking-subheading);color:var(--color-pearl);max-width:540px;margin:0 0 40px}
+  .ctas{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .note{font-size:var(--text-caption);color:var(--color-fog);margin-top:22px;letter-spacing:var(--tracking-caption)}
+  .strip{text-align:center;padding:30px 24px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--color-void)}
+  .strip .lbl{font-size:var(--text-caption);color:var(--color-fog);margin-bottom:12px}
+  .strip .names{display:flex;gap:19px 40px;flex-wrap:wrap;justify-content:center;color:var(--color-fog);font:500 18px var(--font-display);letter-spacing:-.03em}
+  section{padding:var(--section-gap) 0 0}
+  .head{text-align:center;margin-bottom:60px}
+  .head h2{font-size:clamp(32px,5.4vw,48px);letter-spacing:var(--tracking-heading-lg);margin-bottom:18px}
+  .head p{font-size:var(--text-subheading);letter-spacing:var(--tracking-subheading);color:var(--color-fog);margin:0 auto;max-width:560px}
+  .grid{display:grid;gap:20px}.g4{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}.g3{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  .card h3{font-size:var(--text-heading-sm);letter-spacing:var(--tracking-heading-sm);margin:14px 0 12px}
+  .card p{margin:0;color:var(--color-pearl)}
+  .card .num{font:500 11px/1 var(--font-body);letter-spacing:.14em;color:var(--color-fog)}
+  .card .fact{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font-size:var(--text-caption);color:var(--color-fog);letter-spacing:var(--tracking-caption)}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+  .split h2{font-size:clamp(32px,5vw,48px);letter-spacing:var(--tracking-heading-lg);margin-bottom:22px}
+  .split p{font-size:var(--text-subheading);letter-spacing:var(--tracking-subheading);color:var(--color-fog);margin:0 0 30px}
+  .passport{background:radial-gradient(ellipse 80% 50% at 50% 135%,rgba(142,108,228,.35),transparent 70%),var(--color-graphite)}
+  .passport .st{font:400 var(--text-heading-lg)/1 var(--font-display);letter-spacing:var(--tracking-heading-lg);color:var(--color-chalk);margin:10px 0 22px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:8px 24px;font-size:14px}.kv dt{color:var(--color-fog)}.kv dd{margin:0;color:var(--color-chalk);text-align:right;font-variant-numeric:tabular-nums}
+  .hash{margin-top:22px;font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;color:var(--color-fog);word-break:break-all;letter-spacing:0}
+  table{width:100%;border-collapse:collapse;font-size:15px}td{padding:14px 0;border-top:1px solid var(--line);vertical-align:top}
+  td:first-child{color:var(--color-chalk);width:34%;padding-right:20px}td.no{color:var(--color-fog)}
+  .tag{font:500 11px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-lavender-beam)}.tag.no{color:var(--color-fog)}
+  footer{margin-top:var(--section-gap);padding:40px 0 60px;border-top:1px solid var(--line);color:var(--color-fog);font-size:13px;display:flex;gap:19px;flex-wrap:wrap;align-items:center}
+  footer .brand{font-size:16px}
+  @media(max-width:520px){nav .btn-ghost{display:none}}
+  @media(max-width:800px){.split{grid-template-columns:1fr;gap:40px}nav .l{display:none}.hero{min-height:78vh}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav aria-label="Main">
+    <a class="brand" href="/" title="Cairn"><svg width="24" height="24" viewBox="0 0 22 22" fill="none" stroke="#aeaac0" stroke-width="1.3"><rect x="2" y="15" width="18" height="5" rx="2.5"/><rect x="5" y="9" width="12" height="5" rx="2.5"/><rect x="8" y="3" width="6" height="5" rx="2.5"/></svg>Cairn</a>
+    <a class="l" href="#how">How it works</a><a class="l" href="#moments">Moments</a><a class="l" href="#passport">Passport</a><a class="l" href="#status">Status</a>
+    <a class="btn" href="/bench">Open the bench</a>
+    <a class="btn-ghost" href="/bench?demo=1">Replay demo</a>
+  </nav>
+</div>
+
+<header class="hero">
+  <div class="aurora" aria-hidden="true"></div>
+  <span class="pill">Simulated demo, no camera needed</span>
+  <h1 class="display">Object permanence for physical work.</h1>
+  <p>Cairn watches a repair bench, remembers every part, stops the dangerous step, and signs the job when it is done right.</p>
+  <div class="ctas"><a class="btn" href="/bench?demo=1">Replay a teardown</a><a class="btn-ghost" href="/bench">Start a job</a></div>
+  <div class="note">The first AI that can take something apart and put it back together.</div>
+</header>
+
+<div class="strip">
+  <div class="lbl">Built for the Meta Global AI Developer Hackathon 2026. Integration targets:</div>
+  <div class="names"><span>SAM 3.1</span><span>Muse Wonder</span><span>Muse Glimmer</span><span>Muse Voice</span></div>
+</div>
+
+<main class="wrap">
+  <section id="how">
+    <div class="head"><h2>A loop, not a pipeline.</h2><p>The camera is the input. The object graph is the product. The verifier is the moat.</p></div>
+    <div class="grid g4">
+      <div class="card"><div class="num">01</div><h3>See</h3><p>SAM 3.1 detects and tracks parts from text prompts. When the camera can't, tap the part instead.</p></div>
+      <div class="card"><div class="num">02</div><h3>Remember</h3><p>Every part is a node in an append-only, hash-chained log. Restart the app and nothing is lost.</p></div>
+      <div class="card"><div class="num">03</div><h3>Reason</h3><p>A model explains and plans, but only among steps the task graph allows. It can't touch the graph.</p></div>
+      <div class="card"><div class="num">04</div><h3>Verify</h3><p>A safety kernel and five checks (count, order, safety, closure, function) gate the passport.</p></div>
+    </div>
+  </section>
+
+  <section id="moments">
+    <div class="head"><h2>Three moments that matter.</h2><p>Each one is a thing a chatbot cannot fake, shown in the replay.</p></div>
+    <div class="grid g3">
+      <div class="card"><div class="num">THE DROP</div><h3>It noticed before you did.</h3><p>A screw leaves the bench and never reaches a tray well. The counter changes and the banner names the part and the time.</p><div class="fact">Simulated: flagged about 3 seconds after it leaves the frame.</div></div>
+      <div class="card"><div class="num">THE DANGEROUS STEP</div><h3>Stop. Disconnect the battery.</h3><p>A hand goes for the SSD with the battery connected. The step card turns red. The model can explain the rule; it cannot override it.</p><div class="fact">Four hard-coded rules: ESD, power-off, hazard halt, no prying near a live cell.</div></div>
+      <div class="card"><div class="num">THE RETURN</div><h3>Lunch didn't make it forget.</h3><p>Thirty minutes later a fresh process opens the same log. Same counts, same exceptions, same next step. Click any event to see that frame.</p><div class="fact">State is rebuilt from the event log alone.</div></div>
+    </div>
+  </section>
+
+  <section id="passport">
+    <div class="split">
+      <div>
+        <div class="eyebrow" style="margin-bottom:18px">THE ARTIFACT</div>
+        <h2>What you keep.</h2>
+        <p>A one-page passport and the JSON behind it. Counts that reconcile, every exception and how it was resolved, evidence frames, and a hash chain anyone can check.</p>
+        <div class="ctas" style="justify-content:flex-start"><a class="btn" href="/bench?demo=1">See it in the replay</a></div>
+      </div>
+      <div class="card passport">
+        <div class="eyebrow">REPAIR PASSPORT</div>
+        <div class="st">VERIFIED</div>
+        <dl class="kv">
+          <dt>Device</dt><dd>Demo laptop</dd><dt>Job</dt><dd>J-1042</dd>
+          <dt>Fasteners accounted</dt><dd>23 / 23</dd><dt>Parts removed / reinstalled</dt><dd>29 / 29</dd>
+          <dt>Extra parts</dt><dd>0</dd><dt>Exceptions recorded</dt><dd>3, all resolved</dd><dt>Functional test</dt><dd>passed</dd>
+        </dl>
+        <div class="hash">sha-256 chain · ed25519 signature · QR to a public check page</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="status">
+    <div class="head"><h2>Where this stands, honestly.</h2><p>The software runs. The proof on a real bench has not happened yet.</p></div>
+    <div class="card" style="padding:12px 30px">
+      <table>
+        <tr><td>Memory, safety kernel, checks, signed passport, bench screen</td><td><span class="tag">Running</span><br>Tested end to end on a bench simulator.</td></tr>
+        <tr><td>SAM 3.1 on a real camera</td><td class="no"><span class="tag no">Not yet</span><br>The client is written from Meta's docs. It has never seen a real bench, and everything depends on that.</td></tr>
+        <tr><td>Recorded teardowns and a real eval table</td><td class="no"><span class="tag no">Not yet</span><br>The eval harness works. The sessions shipped with it are synthetic.</td></tr>
+        <tr><td>Video that never leaves the bench</td><td class="no"><span class="tag no">Not yet</span><br>Reasoning can run on a local model. SAM is a cloud API today.</td></tr>
+        <tr><td>Muse Voice</td><td class="no"><span class="tag no">Not yet</span><br>Voice uses the browser's speech recognition for now.</td></tr>
+      </table>
+    </div>
+  </section>
+
+</main>
+<div class="wrap">
+  <footer>
+    <a class="brand" href="/"><svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="#8b8e9c" stroke-width="1.3"><rect x="2" y="15" width="18" height="5" rx="2.5"/><rect x="5" y="9" width="12" height="5" rx="2.5"/><rect x="8" y="3" width="6" height="5" rx="2.5"/></svg>Cairn</a>
+    <span>Everything on this page is a simulated session. Not evidence about real perception.</span>
+    <a href="https://github.com/ABDULWAHAB-dev7/CAIRN-AI" style="margin-left:auto">Source</a>
+  </footer>
+</div>
+</body>
+</html>

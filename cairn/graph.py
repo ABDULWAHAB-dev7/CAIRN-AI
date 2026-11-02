@@ -39,6 +39,7 @@ class PartNode:
     confidence: float = 1.0
     track_id: str | None = None
     removed_once: bool = False
+    well: int | None = None
     evidence: list[str] = field(default_factory=list)
     last_change_ts: float = 0.0
 
@@ -70,6 +71,7 @@ class ObjectGraph:
         self.hazard: str | None = None
         self.boot_test: bool | None = None
         self.verified = False
+        self.closed_with_exceptions: str | None = None  # technician's note when closed over open exceptions
         self.registration: dict = {}
         self.started_ts: float | None = None
         self.last_ts: float = 0.0
@@ -91,6 +93,7 @@ class ObjectGraph:
             was_at_rest = n.state in (PartState.INSTALLED, PartState.REINSTALLED)
             n.zone, n.confidence, n.last_change_ts = zone, p.get("confidence", 1.0), e.ts
             n.track_id = p.get("track_id", n.track_id)
+            n.well = p.get("well") if zone.startswith("tray_") else None
             if p.get("frame"):
                 n.evidence.append(p["frame"])
             if zone == "device":
@@ -134,6 +137,8 @@ class ObjectGraph:
             self.boot_test = bool(p["passed"])
         elif t == "verified":
             self.verified = True
+        elif t == "closed_with_exceptions":
+            self.closed_with_exceptions = p.get("note", "")
 
     # ---- step status ------------------------------------------------------------------------
     def teardown_done(self, step: StepSpec) -> bool:
@@ -221,7 +226,7 @@ class ObjectGraph:
                 edges.append({"type": "requires", "to": r})
         return {
             "part_id": pid, "class": s.kind, "label": s.label, "state": n.state.value,
-            "location": n.zone, "confidence": n.confidence, "evidence": n.evidence[-3:],
+            "location": n.zone, "well": n.well, "code": self.device.code(pid), "confidence": n.confidence, "evidence": n.evidence[-3:],
             "edges": edges,
         }
 

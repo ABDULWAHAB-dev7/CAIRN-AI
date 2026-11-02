@@ -3,174 +3,232 @@
   "runs": [
     {
       "run": 1,
+      "note": "clean",
       "faults": [],
-      "parts": 29,
-      "parts_tracked": 29,
+      "noise": {
+        "p_dropout": 0.02,
+        "p_churn": 0.01
+      },
       "parts_visible": 29,
+      "parts_tracked": 29,
       "tracks": 116,
       "id_switches": 0,
-      "exceptions": [],
-      "events": 237,
-      "chain_ok": true,
       "caught": {},
       "missing_latency_s": [],
+      "exceptions": [],
       "spurious": [],
-      "can_close": true
+      "can_close": true,
+      "close_blockers": [],
+      "blocked_by_design": false,
+      "events": 238,
+      "chain_ok": true,
+      "reproduces_recording": true
     },
     {
       "run": 2,
+      "note": "clean",
       "faults": [],
-      "parts": 29,
-      "parts_tracked": 29,
+      "noise": {
+        "p_dropout": 0.02,
+        "p_churn": 0.01
+      },
       "parts_visible": 29,
+      "parts_tracked": 29,
       "tracks": 106,
       "id_switches": 0,
-      "exceptions": [],
-      "events": 227,
-      "chain_ok": true,
       "caught": {},
       "missing_latency_s": [],
+      "exceptions": [],
       "spurious": [],
-      "can_close": true
+      "can_close": true,
+      "close_blockers": [],
+      "blocked_by_design": false,
+      "events": 228,
+      "chain_ok": true,
+      "reproduces_recording": true
     },
     {
       "run": 3,
+      "note": "clean",
       "faults": [],
-      "parts": 29,
-      "parts_tracked": 29,
+      "noise": {
+        "p_dropout": 0.02,
+        "p_churn": 0.01
+      },
       "parts_visible": 29,
+      "parts_tracked": 29,
       "tracks": 117,
       "id_switches": 0,
-      "exceptions": [],
-      "events": 238,
-      "chain_ok": true,
       "caught": {},
       "missing_latency_s": [],
+      "exceptions": [],
       "spurious": [],
-      "can_close": true
+      "can_close": true,
+      "close_blockers": [],
+      "blocked_by_design": false,
+      "events": 239,
+      "chain_ok": true,
+      "reproduces_recording": true
     },
     {
       "run": 4,
+      "note": "clean",
       "faults": [],
-      "parts": 29,
-      "parts_tracked": 29,
+      "noise": {
+        "p_dropout": 0.02,
+        "p_churn": 0.01
+      },
       "parts_visible": 29,
+      "parts_tracked": 29,
       "tracks": 103,
       "id_switches": 0,
-      "exceptions": [],
-      "events": 224,
-      "chain_ok": true,
       "caught": {},
       "missing_latency_s": [],
+      "exceptions": [],
       "spurious": [],
-      "can_close": true
+      "can_close": true,
+      "close_blockers": [],
+      "blocked_by_design": false,
+      "events": 225,
+      "chain_ok": true,
+      "reproduces_recording": true
     },
     {
       "run": 5,
+      "note": "dropped screw",
       "faults": [
         "drop"
       ],
-      "parts": 29,
-      "parts_tracked": 29,
+      "noise": {
+        "p_dropout": 0.02,
+        "p_churn": 0.01
+      },
       "parts_visible": 29,
+      "parts_tracked": 29,
       "tracks": 113,
       "id_switches": 15,
-      "exceptions": [
-        "missing_part"
-      ],
-      "events": 237,
-      "chain_ok": true,
       "caught": {
         "drop": true
       },
       "missing_latency_s": [
         2.75
       ],
+      "exceptions": [
+        "missing_part"
+      ],
       "spurious": [],
-      "can_close": true
+      "can_close": true,
+      "close_blockers": [],
+      "blocked_by_design": false,
+      "events": 238,
+      "chain_ok": true,
+      "reproduces_recording": true
     },
     {
       "run": 6,
+      "note": "skipped battery step",
       "faults": [
         "skip_battery"
       ],
-      "parts": 29,
-      "parts_tracked": 29,
+      "noise": {
+        "p_dropout": 0.02,
+        "p_churn": 0.01
+      },
       "parts_visible": 29,
+      "parts_tracked": 29,
       "tracks": 112,
       "id_switches": 0,
-      "exceptions": [
-        "safety_violation"
-      ],
-      "events": 237,
-      "chain_ok": true,
       "caught": {
         "skip_battery": true
       },
       "missing_latency_s": [],
+      "exceptions": [
+        "safety_violation"
+      ],
       "spurious": [],
-      "can_close": true
+      "can_close": true,
+      "close_blockers": [],
+      "blocked_by_design": false,
+      "events": 238,
+      "chain_ok": true,
+      "reproduces_recording": true
     },
     {
       "run": 7,
+      "note": "wrong screw",
       "faults": [
         "wrong_screw"
       ],
-      "parts": 29,
-      "parts_tracked": 29,
+      "noise": {
+        "p_dropout": 0.02,
+        "p_churn": 0.01
+      },
       "parts_visible": 29,
+      "parts_tracked": 29,
       "tracks": 106,
       "id_switches": 0,
-      "exceptions": [],
-      "events": 229,
-      "chain_ok": true,
       "caught": {
         "wrong_screw": true
       },
       "missing_latency_s": [],
+      "exceptions": [
+        "wrong_fastener"
+      ],
       "spurious": [],
-      "can_close": true
+      "can_close": true,
+      "close_blockers": [],
+      "blocked_by_design": false,
+      "events": 232,
+      "chain_ok": true,
+      "reproduces_recording": true
     },
     {
       "run": 8,
+      "note": "stray part",
       "faults": [
         "extra_part"
       ],
-      "parts": 29,
-      "parts_tracked": 29,
+      "noise": {
+        "p_dropout": 0.02,
+        "p_churn": 0.01
+      },
       "parts_visible": 29,
+      "parts_tracked": 29,
       "tracks": 110,
       "id_switches": 0,
-      "exceptions": [
-        "extra_part"
-      ],
-      "events": 232,
-      "chain_ok": true,
       "caught": {
         "extra_part": true
       },
       "missing_latency_s": [],
+      "exceptions": [
+        "extra_part"
+      ],
       "spurious": [],
-      "can_close": false
+      "can_close": false,
+      "close_blockers": [
+        "closure: 0 part(s) not reinstalled, 1 extra part(s)"
+      ],
+      "blocked_by_design": true,
+      "events": 233,
+      "chain_ok": true,
+      "reproduces_recording": true
     },
     {
       "run": 9,
+      "note": "three faults",
       "faults": [
         "drop",
         "skip_battery",
         "wrong_screw"
       ],
-      "parts": 29,
-      "parts_tracked": 29,
+      "noise": {
+        "p_dropout": 0.02,
+        "p_churn": 0.01
+      },
       "parts_visible": 29,
+      "parts_tracked": 29,
       "tracks": 138,
       "id_switches": 10,
-      "exceptions": [
-        "safety_violation",
-        "missing_part"
-      ],
-      "events": 268,
-      "chain_ok": true,
       "caught": {
         "skip_battery": true,
         "drop": true,
@@ -179,29 +237,36 @@
       "missing_latency_s": [
         2.75
       ],
+      "exceptions": [
+        "safety_violation",
+        "missing_part",
+        "wrong_fastener"
+      ],
       "spurious": [],
-      "can_close": true
+      "can_close": true,
+      "close_blockers": [],
+      "blocked_by_design": false,
+      "events": 271,
+      "chain_ok": true,
+      "reproduces_recording": true
     },
     {
       "run": 10,
+      "note": "all faults, bad lighting",
       "faults": [
         "drop",
         "extra_part",
         "skip_battery",
         "wrong_screw"
       ],
-      "parts": 29,
-      "parts_tracked": 29,
+      "noise": {
+        "p_dropout": 0.12,
+        "p_churn": 0.06
+      },
       "parts_visible": 29,
-      "tracks": 113,
-      "id_switches": 4,
-      "exceptions": [
-        "safety_violation",
-        "missing_part",
-        "extra_part"
-      ],
-      "events": 244,
-      "chain_ok": true,
+      "parts_tracked": 29,
+      "tracks": 492,
+      "id_switches": 25,
       "caught": {
         "skip_battery": true,
         "drop": true,
@@ -211,17 +276,32 @@
       "missing_latency_s": [
         2.75
       ],
+      "exceptions": [
+        "safety_violation",
+        "missing_part",
+        "missing_part",
+        "wrong_fastener",
+        "extra_part"
+      ],
       "spurious": [],
-      "can_close": false
+      "can_close": false,
+      "close_blockers": [
+        "closure: 0 part(s) not reinstalled, 1 extra part(s)"
+      ],
+      "blocked_by_design": true,
+      "events": 629,
+      "chain_ok": true,
+      "reproduces_recording": true
     }
   ],
   "metrics": {
     "part_detection_recall": 1.0,
-    "id_switch_rate": 0.0256,
+    "id_switch_rate": 0.033,
     "missing_part_latency_s_max": 2.75,
     "scripted_fault_catch_rate": 1.0,
     "false_alarm_rate_clean_runs": 0.0,
     "chains_verified": true,
+    "replay_reproduces_recording": true,
     "task_completion_vs_baseline": "not measured (needs human technicians)"
   },
   "targets": {

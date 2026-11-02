@@ -1,0 +1,25 @@
+# docker compose up                      -> Cairn on http://localhost:8000 (replay demo works with no camera)
+# docker compose --profile local up      -> also run a local model for the always-on watcher (Glimmer)
+services:
+  cairn:
+    build: .
+    ports: ["8000:8000"]
+    environment:
+      CAIRN_API_TOKEN: ${CAIRN_API_TOKEN:-}
+      CAIRN_AGENT: ${CAIRN_AGENT:-deterministic}        # deterministic | wonder | glimmer
+      CAIRN_PERCEPTION: ${CAIRN_PERCEPTION:-none}       # none | sam
+      CAIRN_PRIVACY: ${CAIRN_PRIVACY:-}                 # local = nothing leaves the bench
+      CAIRN_LOCAL_URL: ${CAIRN_LOCAL_URL:-http://ollama:11434/v1}
+      CAIRN_LOCAL_MODEL: ${CAIRN_LOCAL_MODEL:-glimmer}
+      CAIRN_PUBLIC_URL: ${CAIRN_PUBLIC_URL:-http://localhost:8000}
+      MODEL_API_KEY: ${MODEL_API_KEY:-}
+    volumes: ["cairn-data:/data"]
+    restart: unless-stopped
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["local"]
+    ports: ["11434:11434"]
+    volumes: ["ollama:/root/.ollama"]
+volumes:
+  cairn-data:
+  ollama:
