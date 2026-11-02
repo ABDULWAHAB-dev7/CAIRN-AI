@@ -1,0 +1,241 @@
+{
+  "synthetic": true,
+  "runs": [
+    {
+      "run": 1,
+      "faults": [],
+      "parts": 29,
+      "parts_tracked": 29,
+      "parts_visible": 29,
+      "tracks": 116,
+      "id_switches": 0,
+      "exceptions": [],
+      "events": 237,
+      "chain_ok": true,
+      "caught": {},
+      "missing_latency_s": [],
+      "spurious": [],
+      "can_close": true
+    },
+    {
+      "run": 2,
+      "faults": [],
+      "parts": 29,
+      "parts_tracked": 29,
+      "parts_visible": 29,
+      "tracks": 106,
+      "id_switches": 0,
+      "exceptions": [],
+      "events": 227,
+      "chain_ok": true,
+      "caught": {},
+      "missing_latency_s": [],
+      "spurious": [],
+      "can_close": true
+    },
+    {
+      "run": 3,
+      "faults": [],
+      "parts": 29,
+      "parts_tracked": 29,
+      "parts_visible": 29,
+      "tracks": 117,
+      "id_switches": 0,
+      "exceptions": [],
+      "events": 238,
+      "chain_ok": true,
+      "caught": {},
+      "missing_latency_s": [],
+      "spurious": [],
+      "can_close": true
+    },
+    {
+      "run": 4,
+      "faults": [],
+      "parts": 29,
+      "parts_tracked": 29,
+      "parts_visible": 29,
+      "tracks": 103,
+      "id_switches": 0,
+      "exceptions": [],
+      "events": 224,
+      "chain_ok": true,
+      "caught": {},
+      "missing_latency_s": [],
+      "spurious": [],
+      "can_close": true
+    },
+    {
+      "run": 5,
+      "faults": [
+        "drop"
+      ],
+      "parts": 29,
+      "parts_tracked": 29,
+      "parts_visible": 29,
+      "tracks": 113,
+      "id_switches": 15,
+      "exceptions": [
+        "missing_part"
+      ],
+      "events": 237,
+      "chain_ok": true,
+      "caught": {
+        "drop": true
+      },
+      "missing_latency_s": [
+        2.75
+      ],
+      "spurious": [],
+      "can_close": true
+    },
+    {
+      "run": 6,
+      "faults": [
+        "skip_battery"
+      ],
+      "parts": 29,
+      "parts_tracked": 29,
+      "parts_visible": 29,
+      "tracks": 112,
+      "id_switches": 0,
+      "exceptions": [
+        "safety_violation"
+      ],
+      "events": 237,
+      "chain_ok": true,
+      "caught": {
+        "skip_battery": true
+      },
+      "missing_latency_s": [],
+      "spurious": [],
+      "can_close": true
+    },
+    {
+      "run": 7,
+      "faults": [
+        "wrong_screw"
+      ],
+      "parts": 29,
+      "parts_tracked": 29,
+      "parts_visible": 29,
+      "tracks": 106,
+      "id_switches": 0,
+      "exceptions": [],
+      "events": 229,
+      "chain_ok": true,
+      "caught": {
+        "wrong_screw": true
+      },
+      "missing_latency_s": [],
+      "spurious": [],
+      "can_close": true
+    },
+    {
+      "run": 8,
+      "faults": [
+        "extra_part"
+      ],
+      "parts": 29,
+      "parts_tracked": 29,
+      "parts_visible": 29,
+      "tracks": 110,
+      "id_switches": 0,
+      "exceptions": [
+        "extra_part"
+      ],
+      "events": 232,
+      "chain_ok": true,
+      "caught": {
+        "extra_part": true
+      },
+      "missing_latency_s": [],
+      "spurious": [],
+      "can_close": false
+    },
+    {
+      "run": 9,
+      "faults": [
+        "drop",
+        "skip_battery",
+        "wrong_screw"
+      ],
+      "parts": 29,
+      "parts_tracked": 29,
+      "parts_visible": 29,
+      "tracks": 138,
+      "id_switches": 10,
+      "exceptions": [
+        "safety_violation",
+        "missing_part"
+      ],
+      "events": 268,
+      "chain_ok": true,
+      "caught": {
+        "skip_battery": true,
+        "drop": true,
+        "wrong_screw": true
+      },
+      "missing_latency_s": [
+        2.75
+      ],
+      "spurious": [],
+      "can_close": true
+    },
+    {
+      "run": 10,
+      "faults": [
+        "drop",
+        "extra_part",
+        "skip_battery",
+        "wrong_screw"
+      ],
+      "parts": 29,
+      "parts_tracked": 29,
+      "parts_visible": 29,
+      "tracks": 113,
+      "id_switches": 4,
+      "exceptions": [
+        "safety_violation",
+        "missing_part",
+        "extra_part"
+      ],
+      "events": 244,
+      "chain_ok": true,
+      "caught": {
+        "skip_battery": true,
+        "drop": true,
+        "extra_part": true,
+        "wrong_screw": true
+      },
+      "missing_latency_s": [
+        2.75
+      ],
+      "spurious": [],
+      "can_close": false
+    }
+  ],
+  "metrics": {
+    "part_detection_recall": 1.0,
+    "id_switch_rate": 0.0256,
+    "missing_part_latency_s_max": 2.75,
+    "scripted_fault_catch_rate": 1.0,
+    "false_alarm_rate_clean_runs": 0.0,
+    "chains_verified": true,
+    "task_completion_vs_baseline": "not measured (needs human technicians)"
+  },
+  "targets": {
+    "part_detection_recall": ">= 0.95",
+    "id_switch_rate": "<= 0.05",
+    "missing_part_latency_s_max": "<= 5.0",
+    "scripted_fault_catch_rate": ">= 1.0",
+    "false_alarm_rate_clean_runs": "<= 0.1"
+  },
+  "pass": {
+    "part_detection_recall": true,
+    "id_switch_rate": true,
+    "missing_part_latency_s_max": true,
+    "scripted_fault_catch_rate": true,
+    "false_alarm_rate_clean_runs": true
+  }
+}
