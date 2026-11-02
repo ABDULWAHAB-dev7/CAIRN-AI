@@ -22,6 +22,13 @@ cairn verify out/passport.json --db out/repair.db
 cairn eval                         # records 10 simulated sessions, replays and scores them -> eval/report.md
 ```
 
+## Hosted replay
+
+`python scripts/export_static.py` builds `site/`, a read-only static copy of the bench screen replaying the simulated demo
+(real rendered frames, real state at every event, the signed passport). It is what is deployed at
+https://cairn-ai-eta.vercel.app. The live backend is not on Vercel: it needs a persistent disk and a long-lived
+event stream, so run it with Docker or on a host that offers both.
+
 ## The bench screen
 
 One view, not a chat window (`cairn/ui/bench.html`, served at `/`):
