@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cairn — Repair Replay</title>
+<meta name="description" content="Replay of a simulated repair: Cairn remembers every part and signs the result.">
+<style>
+  :root{--bg:#f8fafc;--panel:#fff;--ink:#0b1220;--muted:#64748b;--line:#e2e8f0;--teal:#0f766e;--amber:#b45309;--red:#b91c1c;--blue:#1d4ed8;--grey:#94a3b8}
+  @media (prefers-color-scheme:dark){:root{--bg:#0b1220;--panel:#111c2e;--ink:#e2e8f0;--muted:#94a3b8;--line:#1e293b;--teal:#2dd4bf;--amber:#fbbf24;--red:#f87171;--blue:#60a5fa;--grey:#475569}}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,sans-serif}
+  main{max-width:1100px;margin:0 auto;padding:20px 16px 48px}
+  h1{font-size:22px;margin:0}h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+  .sub{color:var(--muted);margin:2px 0 14px}
+  .banner{font-size:13px;color:var(--muted);border:1px dashed var(--line);border-radius:8px;padding:8px 10px;margin-bottom:14px}
+  .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  button{font:inherit;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:6px 12px;cursor:pointer}
+  button:hover{border-color:var(--teal)}input[type=range]{flex:1;min-width:160px;accent-color:var(--teal)}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}.lbl{font-size:12px;color:var(--muted)}
+  .ok{color:var(--teal)}.bad{color:var(--red)}
+  .grid{display:grid;grid-template-columns:2fr 1fr;gap:12px}@media(max-width:800px){.grid{grid-template-columns:1fr}}
+  .zones{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+  .zone{border:1px solid var(--line);border-radius:8px;padding:8px;min-height:64px}
+  .zone b{font-size:12px;color:var(--muted);display:block;margin-bottom:5px}
+  .chip{display:inline-block;width:14px;height:14px;border-radius:50%;margin:2px;border:2px solid transparent}
+  .comp{border-radius:4px;width:18px}
+  .s-installed,.s-reinstalled{background:var(--teal)}.s-removed{background:var(--blue)}
+  .s-in_transit{background:var(--amber)}.s-lost{background:var(--red)}.s-retired{background:var(--grey)}
+  #log{max-height:360px;overflow:auto;font-size:13px}#log div{padding:5px 0;border-bottom:1px solid var(--line)}
+  .critical,.high{color:var(--red)}.warn,.medium{color:var(--amber)}
+  .legend span{margin-right:12px;font-size:12px;color:var(--muted)}.legend .chip{width:10px;height:10px;vertical-align:middle}
+  code{font-size:11px;word-break:break-all;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:13px}td{padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+</style>
+</head>
+<body>
+<main>
+  <h1>CAIRN — repair replay</h1>
+  <p class="sub">Object permanence for physical work. Scrub through one repair; every state below is rebuilt from an append-only event log.</p>
+  <div class="banner">Simulated session. The detections come from a bench simulator, not a camera or SAM 3.1. This shows the memory, safety and verification layers, not real-world perception.</div>
+  <div class="bar">
+    <button id="play">Play</button><button id="reset">Restart</button>
+    <input id="scrub" type="range" min="0" value="0" aria-label="Timeline">
+    <span id="clock" class="lbl"></span>
+  </div>
+  <div class="stats">
+    <div class="card"><div class="big" id="acc"></div><div class="lbl">fasteners accounted</div></div>
+    <div class="card"><div class="big" id="phase" style="font-size:18px"></div><div class="lbl">phase</div></div>
+    <div class="card"><div class="big" id="batt" style="font-size:18px"></div><div class="lbl">battery</div></div>
+    <div class="card"><div class="big" id="open"></div><div class="lbl">open exceptions</div></div>
+  </div>
+  <div class="card" style="margin-bottom:12px"><h2>Next step</h2><div id="next" style="font-size:17px"></div></div>
+  <div class="grid">
+    <div class="card"><h2>Where every part is</h2><div class="zones" id="zones"></div>
+      <div class="legend" style="margin-top:10px"><span><i class="chip s-installed"></i>in device</span><span><i class="chip s-in_transit"></i>in hand</span><span><i class="chip s-removed"></i>in tray</span><span><i class="chip s-lost"></i>lost</span><span>square = component</span></div></div>
+    <div class="card"><h2>What Cairn said</h2><div id="log"></div></div>
+  </div>
+  <div class="card" style="margin-top:12px" id="passport" hidden><h2>Repair passport</h2>
+    <div id="inv"></div><p class="lbl">Chain head</p><code id="head"></code><p class="lbl">Ed25519 signature</p><code id="sig"></code>
+    <p class="lbl">Verify offline with <code>cairn verify passport.json --db repair.db</code></p></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+fetch('data.json').then(r=>r.json()).then(D=>{
+  const F=D.frames, scrub=$('scrub'); scrub.max=F.length-1;
+  let idx=0,timer=null;
+  const zname=z=>z==='device'?'On the device':z==='hand'?'In hand':z==='bench'?'Bench (components)':z.replace('_',' ').replace(/^./,c=>c.toUpperCase());
+  function render(i){
+    idx=i; const f=F[i]; scrub.value=i;
+    $('clock').textContent=`t+${f.t.toFixed(0)}s · event ${f.i}`;
+    $('acc').textContent=`${f.acc}/23`; $('phase').textContent=f.phase.replace('_',' ');
+    $('batt').textContent=f.power_off?'disconnected':'connected'; $('batt').className='big '+(f.power_off?'ok':'bad');
+    const o=$('open'); o.textContent=f.open; o.className='big '+(f.open?'bad':'ok');
+    $('next').textContent=f.next||'Run the boot test and sign the passport.';
+    const zones={}; D.parts.forEach((p,k)=>{const z=f.s[k]==='lost'?'lost':f.z[k];(zones[z]=zones[z]||[]).push([p,f.s[k]])});
+    const order=['device','hand',...[1,2,3,4,5,6].map(n=>'tray_'+n),'bench','lost'];
+    $('zones').innerHTML=order.filter(z=>zones[z]).map(z=>`<div class="zone"><b>${z==='lost'?'Lost':zname(z)} · ${zones[z].length}</b>`+
+      zones[z].map(([p,s])=>`<i class="chip s-${s} ${p.kind==='component'?'comp':''}" title="${p.label} (${s})"></i>`).join('')+'</div>').join('');
+    const log=F.slice(0,i+1).filter(x=>x.msg).slice(-40).reverse();
+    $('log').innerHTML=log.map(x=>`<div class="${x.msg[0]}"><span class="lbl">t+${x.t.toFixed(0)}s</span> ${x.msg[1].replace(/</g,'&lt;')}</div>`).join('')||'<div class="lbl">Watching the bench…</div>';
+    const done=i===F.length-1; $('passport').hidden=!done;
+    if(done){const P=D.passport;
+      $('inv').innerHTML='<table>'+D.invariants.map(v=>`<tr><td>${v.name}</td><td class="${v.ok?'ok':'bad'}">${v.ok?'PASS':'FAIL'}</td><td>${v.detail}</td></tr>`).join('')+'</table>';
+      $('head').textContent=P.head; $('sig').textContent=P.signature;}
+  }
+  function stop(){clearInterval(timer);timer=null;$('play').textContent='Play'}
+  $('play').onclick=()=>{ if(timer){stop();return} if(idx>=F.length-1)render(0); $('play').textContent='Pause';
+    timer=setInterval(()=>{ if(idx>=F.length-1){stop();return} render(idx+1)},160)};
+  $('reset').onclick=()=>{stop();render(0)};
+  scrub.oninput=e=>{stop();render(+e.target.value)};
+  render(0);
+});
+</script>
+</body>
+</html>

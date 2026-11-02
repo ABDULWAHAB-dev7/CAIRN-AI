@@ -6,3 +6,4 @@ out/
 *.db
 .env
 keys/
+.vercel/
