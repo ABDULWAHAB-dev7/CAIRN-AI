@@ -4,6 +4,18 @@
 
 The full plan is in [`docs/Cairn-Project-Blueprint.pdf`](docs/Cairn-Project-Blueprint.pdf). This repo is the build.
 
+> **Status at the submission freeze (read this first)**
+> - **Works, tested (78 tests, CI green):** hash-chained event log, object graph, safety kernel, five verification checks, signed passport (PDF + JSON + QR), HTTP backend, bench screen, close-job flow.
+> - **Simulated:** every session, frame, screenshot and eval number in this repo comes from a bench simulator. Nothing here is footage or measurements from a real camera.
+> - **Written but never run live:** the SAM 3.1 and Muse Wonder clients (see [`docs/PROOF.md`](docs/PROOF.md) when it exists), browser camera capture, the Docker image build.
+> - **Not built:** Muse Voice, Muse Image, local-only video, a recorded real teardown, a demo video.
+
+![The bench screen replaying a simulated session at the moment a screw is flagged missing](docs/img/bench-drop.png)
+*Screenshot of the running app replaying the **simulated** demo: REMOVED 16, ACCOUNTED 14, MISSING 1. Not a real bench.*
+
+![Closing the job: VERIFIED](docs/img/passport-closed.png)
+*Closing the same simulated job: the verifier passes and the passport is signed.*
+
 ## Run it
 
 ```bash
