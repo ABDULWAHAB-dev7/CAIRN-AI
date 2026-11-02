@@ -1,0 +1,5 @@
+# hosted replay, checked 2026-11-02T18:34:10Z (after the 404 incident described in docs/PROOF.md was repaired)
+https://cairn-ai-eta.vercel.app/                     200
+https://cairn-ai-eta.vercel.app/bench                200
+https://cairn-ai-eta.vercel.app/data/passport.pdf    200
+https://cairn-ai-eta.vercel.app/v                    200

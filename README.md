@@ -7,7 +7,8 @@ The full plan is in [`docs/Cairn-Project-Blueprint.pdf`](docs/Cairn-Project-Blue
 > **Status at the submission freeze (read this first)**
 > - **Works, tested (78 tests, CI green):** hash-chained event log, object graph, safety kernel, five verification checks, signed passport (PDF + JSON + QR), HTTP backend, bench screen, close-job flow.
 > - **Simulated:** every session, frame, screenshot and eval number in this repo comes from a bench simulator. Nothing here is footage or measurements from a real camera.
-> - **Written but never run live:** the SAM 3.1 and Muse Wonder clients (see [`docs/PROOF.md`](docs/PROOF.md) when it exists), browser camera capture, the Docker image build.
+> - **Written but never run successfully:** the SAM 3.1 and Muse Wonder clients. Both live calls were attempted and **rejected with HTTP 401 (invalid key)**, so neither is proven ([`docs/PROOF.md`](docs/PROOF.md), rows 11-12). Also never run: browser camera capture and the Docker image build.
+> - **Perception is unproven.** The demo is therefore framed as memory and verification, with perception by tap when the camera path is not available.
 > - **Not built:** Muse Voice, Muse Image, local-only video, a recorded real teardown, a demo video.
 
 ![The bench screen replaying a simulated session at the moment a screw is flagged missing](docs/img/bench-drop.png)
@@ -28,7 +29,7 @@ cairn serve                        # http://localhost:8000
 Open it, choose **Jobs → Replay the scripted demo**, and click any timeline entry. No camera needed.
 
 ```bash
-python -m pytest                   # 68 tests
+python -m pytest                   # 78 tests
 cairn demo                         # scripted hero demo -> out/passport.{json,html,pdf}, repair.db
 cairn verify out/passport.json --db out/repair.db
 cairn eval                         # records 10 simulated sessions, replays and scores them -> eval/report.md
@@ -47,7 +48,7 @@ The front end follows the "aurora behind smoked glass" reference: a near-black v
 
 ## The bench screen
 
-One view, not a chat window (`cairn/ui/bench.html`, served at `/`):
+One view, not a chat window (`cairn/ui/bench.html`, served at `/bench`):
 
 - **Centre:** the live bench feed with thin outlines and tiny labels, e.g. `p_04 · hinge screw · tray 04`. Camera mode overlays them on the video; server mode draws the bench.
 - **Top strip:** `REMOVED · ACCOUNTED · MISSING · STATE`.

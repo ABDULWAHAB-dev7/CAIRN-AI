@@ -3,6 +3,10 @@
 Status of every item the end state asks for, then the drafts. Nothing marked TODO has been done; these need a
 physical bench, a camera, API access, or your voice.
 
+**Framing decision (2026-11-02):** both live Meta API calls were rejected (HTTP 401, invalid key), so SAM 3.1 perception is
+unproven. Until a real call and a real bench run succeed, the demo is presented as **memory and verification, with
+perception by tap**, and the eval table says "perception: not proven". Evidence: `docs/PROOF.md`, `docs/proof/meta/`.
+
 | Item | Status |
 |---|---|
 | Working repo, `docker compose up`, replay mode without a camera | built; Docker build untested here |

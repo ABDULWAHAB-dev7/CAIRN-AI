@@ -1,0 +1,46 @@
+{
+  "called_at_utc": "2026-11-02T18:30:08.779374+00:00",
+  "env_var_used": "META_API_KEY",
+  "endpoint": "https://api.meta.ai/v1/responses",
+  "http_status": 401,
+  "request_authorization": "Bearer [redacted]",
+  "request_body": {
+    "model": "sam-3.1",
+    "metadata": {
+      "include_confidence": "true"
+    },
+    "stream": true,
+    "input": [
+      {
+        "type": "message",
+        "role": "user",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "screw"
+          },
+          {
+            "type": "input_image",
+            "image_url": "data:image/jpeg;base64,[49253 bytes, sha256 3818b59c094314cb..., see sam_input.jpg]"
+          }
+        ]
+      }
+    ]
+  },
+  "response_headers": {
+    "Content-Type": "application/json",
+    "x-request-id": "c3c4e13e-31f6-4829-b899-e80e2594fdf5",
+    "Access-Control-Allow-Origin": "*",
+    "Date": "Mon, 02 Nov 2026 18:30:09 GMT",
+    "x-route": "model-api-rust",
+    "Proxy-Status": "http_request_error; e_proxy=\"AcQg28-QSJfD1Fkuy45lYiDulMyEl1UJ1EXPcriZbK7k2Ls8NOpOJwxDRsc-Gq2K9gfmnJq8fwr3cIsZ9OzK\"; e_fb_twtaskhandle=\"AcTiaX8qetOUtaqppEazY4fkqwgP_4X7ff8cGYtXoAH245KEtIx-7k5X_fuDqSik0jRhSmJbgRduiOYy415kva_OAAxt99CMkygCVLsV\"; e_upip=\"AcT8E_okJMywj62CD03wkJDSWjNt-Pc_f_lZAb0SVmZc1MCIvvlHTVdb7Jrs80OC4uOuQ1GvcNLJhrzSY7fmWK2f3tTA4G-NZrI8ZurgvM8\"; e_fb_zone=\"AcRQ9GAU5CNoDZHhE8F7WonyA3QN-fddbPQXnvs-Y6YD3QGWkSu5MvPZUjTO7rF2\"; e_clientaddr=\"AcSQVeWDEUuSJS0j9675laKs8cEmoJJPxW_CF-s18zn05XtvjU2naB51AVf86lAdj5qFajxXT2Bdj_WwLJd58G2GZ0hC4QxSnzmk83D6EQ--_HIQ0Q\"; e_fb_vipaddr=\"AcToq7_3l-H0em0v65GooFCIe5ZKJXl9qfPlBV-HFnv_XWSqBarSB2S-SYg0eC1WuUB_uCf4oZi97waGaC4GI0JtMvTgiUzKk7MtlBKb\", http_request_error; e_proxy=\"AcSOMpRUhqwDnmetMAFRsSS0VAV17Jo0f5ZL8kv-IQrqtWDbLRxaemcaBErAnF9zEOAs0DwKLWVMsHc\"; e_fb_twtaskhandle=\"AcSELOvenTpgjiToP_FoAJQlCeOLoZ8kzUqrn0AjZUcw9JF0kZlSAVelLyCtyIIxODPggY3LP2TBiDEYtoablyfeaUG62RXUbsFE\"; e_upip=\"AcR2P6QpMxa_bWcwtf1Co5BGkeJiWKLlHUBzcLCT4GcBsAaUxtpEFs-7oero8UJZPS-EPGaqQjoWMspqFr_QwxzwtsXLZZsjy7VO201u\"; e_fb_zone=\"AcTAIfieqc5LF1e6VeS6RsKQOCK6TElwOJwA9Sx2-oMzYihQleJUjIP98LyEiA\"; e_clientaddr=\"AcQrXg_bKnfuFrWOXH9jJ42pz3sLfPxmJEYRN5GHx2icQ2mDU2Dd8SVM9syw7VaaQn_2Y-Yt2XLj6HOIHIMxQSWsgOfBKQVRt1wUs33dd-XyKYxnqBksSA\"; e_fb_vipaddr=\"AcQyKbOBB0klvdyJ17qyf3hXnpe1LNXTpLJlcv_MOTzzvHmWJCArZP_Qidphw_XAT1p7IQuCGKHjxKU6n7dKajGq8bzlk-66EQ\"",
+    "Connection": "close",
+    "Content-Length": "104"
+  },
+  "image": {
+    "file": "sam_input.jpg",
+    "bytes": 49253,
+    "sha256": "3818b59c094314cbc15904fdbc50cab1d343768512a5e1fe11e943b35305fbd2",
+    "what_it_is": "a rendered frame from the bench SIMULATOR, not a photograph of a real bench"
+  }
+}

@@ -1,0 +1,4 @@
+# fresh clone of main @ aea5e8323c001a2168de34478efbcfc4e8b31463, clean virtualenv, 2026-11-02T18:30:56Z
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+78 passed, 1 warning in 28.57s
