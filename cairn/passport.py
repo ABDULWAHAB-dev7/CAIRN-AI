@@ -145,3 +145,48 @@ code{{font-size:11px;word-break:break-all}}</style>
 
 def dumps(passport: dict) -> str:
     return json.dumps(passport, indent=2, ensure_ascii=False)
+
+
+def to_pdf(passport: dict, path: str | Path) -> None:
+    """Render the passport as a one-page A4 PDF. Needs Pillow (`pip install cairn[pdf]`)."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    def font(size):
+        for name in ("arial.ttf", "DejaVuSans.ttf"):
+            try:
+                return ImageFont.truetype(name, size)
+            except OSError:
+                pass
+        return ImageFont.load_default(size)
+
+    b, c = passport["body"], passport["body"]["counts"]
+    img = Image.new("RGB", (1240, 1754), "white")
+    d = ImageDraw.Draw(img)
+    y = 90
+
+    def line(text, size=26, fill="#0b1220", gap=14, x=90):
+        nonlocal y
+        d.text((x, y), text, font=font(size), fill=fill)
+        y += size + gap
+
+    line("REPAIR PASSPORT", 44, "#0f766e", 24)
+    line(f"{b['device']['label']}  |  technician {b['technician']}  |  bench {b['bench']}", 24, "#64748b", 30)
+    line(f"{c['fasteners_accounted']} / {c['fasteners_total']} fasteners   {c['extra_parts']} extra parts", 48, "#0f766e", 30)
+    for i in b["invariants"]:
+        line(f"{i['name'].upper():10} {'PASS' if i['ok'] else 'FAIL'}   {i['detail']}", 24, "#0b1220" if i["ok"] else "#b91c1c")
+    y += 20
+    line("Exceptions", 30, "#0b1220", 12)
+    for x in b["exceptions"] or [{"id": "-", "type": "none", "detail": "", "resolved_by": None, "note": None}]:
+        line(f"{x['id']} {x['type']}: {x['detail'][:78]}", 20, "#334155", 6)
+        if x["resolved_by"]:
+            line(f"resolved by {x['resolved_by']}: {x['note']}"[:90], 18, "#64748b", 8, x=130)
+    y += 20
+    line(f"Evidence frames: {len(b['evidence'])}   Events: {b['event_chain']['length']}", 22, "#64748b")
+    line("Chain head (SHA-256)", 20, "#64748b", 4)
+    line(b["event_chain"]["head"], 18, "#334155", 14)
+    line("Signature (Ed25519)", 20, "#64748b", 4)
+    line(passport["signature"][:64], 18, "#334155", 4)
+    line(passport["signature"][64:], 18, "#334155", 14)
+    line("Public key", 20, "#64748b", 4)
+    line(b["signer"]["public_key"], 18, "#334155")
+    img.save(path, "PDF", resolution=150)

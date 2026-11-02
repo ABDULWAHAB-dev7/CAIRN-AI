@@ -253,3 +253,14 @@ def test_zone_map_assigns_hand_tray_device_and_bench():
     p = Sam31Perception(FakeSam(), zones, {"hinge screw": "hinge_screw"})
     f = p.frame("f1", 0.0, b"")
     assert {d.track_id: d.zone for d in f.detections} == {"a": "device", "b": "tray_4", "c": "hand"}
+
+
+def test_passport_pdf_renders(tmp_path):
+    pytest.importorskip("PIL")
+    log = EventLog()
+    for _, b in hero_demo(log):
+        pass
+    p = passport.issue(b.session, "tech_a", passport.Signer.generate(), b.t + 1)
+    out = tmp_path / "p.pdf"
+    passport.to_pdf(p, out)
+    assert out.read_bytes().startswith(b"%PDF")

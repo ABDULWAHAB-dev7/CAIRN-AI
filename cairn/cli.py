@@ -48,11 +48,15 @@ def cmd_demo(args) -> int:
     p = passport.issue(s, "tech_a", signer, bench.t + 5)
     (out / "passport.json").write_text(passport.dumps(p), encoding="utf-8")
     (out / "passport.html").write_text(passport.to_html(p), encoding="utf-8")
+    try:
+        passport.to_pdf(p, out / "passport.pdf")
+    except ImportError:
+        print("(install cairn[pdf] for passport.pdf)")
     ok, problems = passport.verify(p, s.log.events())
     c = p["body"]["counts"]
     print(f"\nPassport: {c['fasteners_accounted']}/{c['fasteners_total']} fasteners, "
           f"{c['extra_parts']} extra parts, chain {'verified' if ok else problems}")
-    print(f"Wrote {out / 'passport.json'}, {out / 'passport.html'}, {db}")
+    print(f"Wrote passport.json, .html, .pdf and repair.db to {out}")
     return 0 if ok else 1
 
 
