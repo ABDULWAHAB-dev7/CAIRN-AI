@@ -37,7 +37,7 @@ from .device import DEVICES, get_device
 from .events import Event, EventLog
 from .frames import FrameStore, render_png
 from .timeline import build_timeline
-from .perception import Sam31Perception, ZoneMap
+from .perception import DEVICE_CLASS, Sam31Perception, SimpleTracker, ZoneMap
 from .scenarios import hero_demo
 from .session import Detection, Frame, Session
 
@@ -187,6 +187,22 @@ def _now(rt: Runtime, ts: float | None) -> float:
     return max(ts if ts is not None else time.time(), rt.session.graph.last_ts)
 
 
+def _perception_error(e: Exception) -> str:
+    """What the page shows when the model call fails: say what is wrong, not just a status code."""
+    raw = f"{type(e).__name__}: {e}"
+    low = raw.lower()
+    if "billing" in low:
+        why = ("Meta refused the request because the Meta API account behind this key has a billing problem (402 "
+               "billing_not_configured). Nothing can be recognised until it is resolved at https://dev.meta.ai/billing.")
+    elif " 401 " in raw or " 403 " in raw:
+        why = "Meta rejected the API key (check MODEL_API_KEY)."
+    elif " 429 " in raw:
+        why = "Meta is rate-limiting this key; frames will be retried."
+    else:
+        return f"perception failed: {raw}"
+    return f"perception failed: {why}"
+
+
 def _alerts(alerts) -> list[dict]:
     return [dataclasses.asdict(a) for a in alerts]
 
@@ -221,6 +237,67 @@ def make_agent(kind: str, privacy_local: bool) -> Agent:
     return DeterministicAgent()
 
 
+# What SAM 3.1 reliably recognises on real laptop photos (tested 2026-11-03): plain common nouns. It did NOT find
+# "battery", "hard drive", "DVD drive", "back cover" or "memory module", so they are not prompted for.
+OPEN_PROMPTS = {"laptop": DEVICE_CLASS, "screw": "screw", "fan": "fan", "cable": "cable", "circuit board": "circuit_board"}
+WHOLE_FRAME = (0.0, 0.0, 1e9, 1e9)
+
+
+class PerceptionPool:
+    """One perception (and one tracker) per session: track ids and the laptop region must not leak between jobs.
+    Which parts to look for depends on the device the job was started with."""
+
+    label = "SAM 3.1"
+
+    def __init__(self, make_backend, zones_file: str | None = None):
+        self._make_backend, self._zones_file = make_backend, zones_file
+        self._by_sid: dict[str, Sam31Perception] = {}
+        self._lock = threading.Lock()
+        self._backend = None
+        self.prompt_to_class: dict[str, str] = {}
+        self.warning: str | None = None  # why the last model call failed (shown by /health), None while calls succeed
+
+    def backend(self):
+        with self._lock:
+            if self._backend is None:
+                self._backend = self._make_backend()
+            return self._backend
+
+    def warm_up(self) -> None:
+        """The first SAM call after a start took ~23 s (connection set-up); take that hit now, not on the first frame."""
+        def go():
+            try:
+                import io
+
+                from PIL import Image
+
+                buf = io.BytesIO()
+                Image.new("RGB", (64, 64), "gray").save(buf, "JPEG")
+                self.backend().track(buf.getvalue(), ["screw"])
+                self.warning = None
+            except Exception as e:  # a failed warm-up changes nothing, but a billing/key problem is worth saying early
+                self.warning = _perception_error(e).removeprefix("perception failed: ")[:300]
+
+        threading.Thread(target=go, daemon=True).start()
+
+    def get(self, sid: str, device) -> Sam31Perception:
+        with self._lock:
+            p = self._by_sid.get(sid)
+        if p is None:
+            if device.open_bench:
+                zones, prompts = ZoneMap(trays={}, device=WHOLE_FRAME), dict(OPEN_PROMPTS)
+            elif self._zones_file:
+                cfg = json.loads(Path(self._zones_file).read_text(encoding="utf-8"))
+                zones, prompts = ZoneMap({k: tuple(v) for k, v in cfg["trays"].items()}, tuple(cfg["device"])), cfg["prompts"]
+            else:  # the demo bench geometry (cairn.geometry) and one prompt per part class
+                zones, prompts = ZoneMap.default(device), {c.replace("_", " "): c for c in device.classes()}
+            p = Sam31Perception(self.backend(), zones, prompts, SimpleTracker())
+            with self._lock:
+                p = self._by_sid.setdefault(sid, p)
+        self.prompt_to_class = p.prompt_to_class
+        return p
+
+
 def make_perception(kind: str, privacy_local: bool, zones_file: str | None):
     if kind == "none":
         return None
@@ -229,15 +306,10 @@ def make_perception(kind: str, privacy_local: bool, zones_file: str | None):
     if privacy_local:
         raise RuntimeError("CAIRN_PRIVACY=local forbids sending bench images to the cloud SAM API")
     from .meta_api import MetaClient, Sam31Backend
-    if zones_file:
-        cfg = json.loads(Path(zones_file).read_text(encoding="utf-8"))
-        zones = ZoneMap({k: tuple(v) for k, v in cfg["trays"].items()}, tuple(cfg["device"]))
-        prompts = cfg["prompts"]
-    else:  # the demo bench geometry (cairn.geometry) and one prompt per part class
-        dev = get_device("demo_laptop")
-        zones = ZoneMap.default(dev)
-        prompts = {c.replace("_", " "): c for c in dev.classes()}
-    return Sam31Perception(Sam31Backend(MetaClient()), zones, prompts)
+
+    pool = PerceptionPool(lambda: Sam31Backend(MetaClient()), zones_file)
+    pool.warm_up()
+    return pool
 
 
 def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, perception=None,
@@ -261,13 +333,13 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
     @app.get("/health")
     def health():
         return {"ok": True, "version": __version__, "agent": type(agent).__name__,
-                "perception": type(perception).__name__ if perception else None,
+                "perception": getattr(perception, "label", type(perception).__name__) if perception else None,
                 "privacy": "local" if privacy_local else "cloud-allowed", "auth": bool(token),
-                "sessions": len(hub.items)}
+                "sessions": len(hub.items), "perception_warning": getattr(perception, "warning", None)}
 
     @app.get("/devices", dependencies=secured)
     def devices():
-        return {"devices": sorted(DEVICES)}
+        return {"devices": list(DEVICES)}  # the open bench (any laptop) first: it is the one for real work
 
     # ---- sessions -----------------------------------------------------------------------------
     @app.post("/sessions", status_code=201, dependencies=secured)
@@ -358,10 +430,15 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
         when = _now(rt, ts)
         fid = frame_id or f"img_{int(when * 1000)}"
         started = time.perf_counter()
+        percept = perception.get(rt.id, rt.session.device) if isinstance(perception, PerceptionPool) else perception
         try:
-            frame = await asyncio.to_thread(perception.frame, fid, when, image)
+            frame = await asyncio.to_thread(percept.frame, fid, when, image)
         except Exception as e:
-            raise HTTPException(502, f"perception failed: {type(e).__name__}: {e}")
+            if isinstance(perception, PerceptionPool):
+                perception.warning = _perception_error(e).removeprefix("perception failed: ")[:300]
+            raise HTTPException(502, _perception_error(e))
+        if isinstance(perception, PerceptionPool):
+            perception.warning = None
         ms = int((time.perf_counter() - started) * 1000)
         with rt.lock:
             rt.frames.save_image(frame.frame_id, image)
@@ -370,8 +447,11 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
             # technician can tell "nothing is being checked" from "checked, nothing recognised".
             seen = [{"cls": d.cls, "zone": d.zone, "conf": round(d.confidence, 2),
                      "box": [round(v, 1) for v in d.box] if d.box else None} for d in frame.detections[:150]]
+            db = getattr(percept, "device_box", None)
             return {**_out(rt, alerts), "detections": len(frame.detections), "frame_id": frame.frame_id,
-                    "seen": seen, "ms": ms, "prompts": sorted(getattr(perception, "prompt_to_class", {}))}
+                    "seen": seen, "ms": ms, "prompts": sorted(p for p, c in getattr(percept, "prompt_to_class", {}).items()
+                                                               if c != DEVICE_CLASS),
+                    "device_box": [round(v, 1) for v in db] if db else None, "tally": rt.session.tally()}
 
     @app.post("/sessions/{sid}/taps", dependencies=secured)
     def post_tap(sid: str, body: TapIn):

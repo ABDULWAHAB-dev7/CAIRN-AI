@@ -51,6 +51,8 @@
   #camstat{position:absolute;right:12px;bottom:12px;max-width:min(360px,72%);padding:10px 12px;border-radius:var(--radius-sm);background:rgba(13,13,18,.94);
     border:1px solid var(--line-strong);font-size:12px;line-height:1.45;color:var(--color-pearl);display:none}
   #camstat .t{font-weight:600;color:var(--color-chalk);display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:13px}
+  #camstat .say{color:var(--color-chalk)}#camstat .say.first{border-top:1px solid var(--line);margin-top:6px;padding-top:6px}
+  #parts-out .tl{margin:0 0 8px;color:var(--color-pearl)}#parts-out .tl b{color:var(--color-chalk);font-weight:600}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--color-lavender-beam);display:inline-block;flex:none}
   .dot.busy{animation:blink 1s infinite}.dot.wait{background:var(--color-fog)}.dot.err{background:var(--color-critical)}
   @keyframes blink{50%{opacity:.25}}
@@ -102,8 +104,8 @@
   <div id="meta"><span id="who"></span><span id="conn" role="status"></span><button id="btn-cam">Camera</button><button id="btn-base" style="display:none">Baseline</button><button id="btn-flip" style="display:none" title="Switch between the rear and front camera">Rear camera</button>
     <button id="btn-token" style="display:none">Enter token</button><button id="btn-sound" aria-pressed="true" title="Spoken alerts">Sound on</button><button id="btn-close" class="primary">Close job</button><button id="btn-new">Jobs</button></div>
 </header>
-<aside id="left" class="panel" aria-label="Tray map"><h2>Tray</h2><div id="wells" role="list"></div>
-  <p class="legend">Filled means a removed part is in that well. The correct well pulses once when a part is misplaced.</p>
+<aside id="left" class="panel" aria-label="Tray map"><h2 id="left-h">Tray</h2><div id="wells" role="list"></div>
+  <p class="legend" id="left-legend">Filled means a removed part is in that well. The correct well pulses once when a part is misplaced.</p>
   <div id="parts-out" aria-live="polite"></div></aside>
 <main id="feedwrap" class="panel" aria-label="Bench feed">
   <img id="feed" alt="Overhead view of the bench with outlines on every tracked part"><video id="cam" playsinline muted aria-label="Live camera"></video><canvas id="ov" aria-hidden="true"></canvas>
@@ -237,12 +239,20 @@ function render(s) {
   const m = $('st-miss'); m.textContent = t.missing; m.className = 'n' + (t.missing ? ' bad' : '');
   $('st-state').textContent = t.state;
   $('who').textContent = [s.job_number ? 'Job ' + s.job_number : '', s.closed ? s.closed.replace('_', ' ') : ''].filter(Boolean).join(' · ');
-  updateWells(s.wells);
+  const ob = !!s.open_bench, rows = tallyRows(s.tally);  // open bench: no tray, no task graph: a running count instead
+  $('wells').style.display = $('left-legend').style.display = ob ? 'none' : ''; $('left-h').textContent = ob ? 'On the laptop' : 'Tray';
+  if (!ob) updateWells(s.wells);
   const out = Object.values(s.parts).filter(p => p.state === 'lost' || p.state === 'in_transit').map(p => `${p.code} ${p.state.replace('_', ' ')}`);
-  $('parts-out').textContent = out.length ? 'Not in a tray: ' + out.join(', ') : '';
+  const po = $('parts-out'); po.textContent = '';
+  if (ob) {
+    if (!rows.length) { const d = document.createElement('div'); d.className = 'tl'; d.textContent = 'Nothing seen yet. Hold the camera close to the laptop.'; po.appendChild(d); }
+    for (const r of rows) { const d = document.createElement('div'); d.className = 'tl'; const b = document.createElement('b'); b.textContent = r.title + ': '; d.append(b, r.text); po.appendChild(d); }
+    if (out.length) { const d = document.createElement('div'); d.className = 'tl'; d.textContent = 'Lost or in hand: ' + out.join(', '); po.appendChild(d); }
+  } else po.textContent = out.length ? 'Not in a tray: ' + out.join(', ') : '';
+  const obText = rows.map(r => `${r.title}: ${r.text}`).join(' · ');
   const open = s.exceptions.filter(x => !x.resolved);
   const safety = open.find(x => x.type === 'safety_violation' || x.type === 'hazard');
-  const key = JSON.stringify([safety && safety.id, s.closed, s.next && s.next.id, !s.next]);
+  const key = JSON.stringify([safety && safety.id, s.closed, s.next && s.next.id, !s.next, ob && obText]);
   if (key !== stepKey) {
     stepKey = key; const body = $('stepbody'); body.innerHTML = '';
     const card = $('step'); card.className = 'panel' + (safety ? ' red' : '');
@@ -250,6 +260,10 @@ function render(s) {
     if (safety) add('stop', safety.type === 'hazard' ? 'Stop all work. ' + safety.detail : 'Stop. ' + safety.detail.replace(/^[a-z_0-9]+: /, ''));
     if (s.closed) add('a', s.closed === 'verified' ? 'Job closed: verified' : 'Job closed with exceptions');
     else if (s.next) { add('a', s.next.action); add('w', s.next.why); }
+    else if (ob) {
+      add('a', rows.length ? 'Take it apart. I am watching.' : 'Point the camera at the open laptop.');
+      add('w', obText || 'Keep the phone close enough that the screws are visible. I will say what I can see, and what comes off.');
+    }
     else add('a', 'Run the boot test, then close the job.');
   }
   const top = [...open].sort((a, b) => (b.severity === 'critical') - (a.severity === 'critical') || b.ts - a.ts)[0];
@@ -269,14 +283,29 @@ function render(s) {
   buildManual(s);
   if (camOn) drawOverlay(s);
 }
+const SAYS = new Set(['seen', 'removed', 'installed', 'found', 'missing_part']);  // plain-news alerts that are still said aloud
+function plural(label, n) { return `${n} ${label}${n === 1 ? '' : 's'}`; }
+function tallyRows(t) {  // open bench: one row per kind of part the camera has found
+  return Object.values(t || {}).map(v => {
+    const total = v.on_device + v.in_hand + v.off_device + v.not_visible + v.lost, away = [];
+    if (v.in_hand) away.push(v.in_hand + ' in a hand'); if (v.not_visible) away.push(v.not_visible + ' no longer on it');
+    if (v.off_device) away.push(v.off_device + ' off it'); if (v.lost) away.push(v.lost + ' lost');
+    return {title: v.label.charAt(0).toUpperCase() + v.label.slice(1) + 's', on: v.on_device, total,
+            text: v.on_device + ' on the laptop' + (away.length ? ', ' + away.join(', ') : ''), name: v.label};
+  });
+}
 function handleAlerts(alerts) {
+  const said = [];
   for (const a of (alerts || [])) {
     const key = a.ts + '|' + a.kind + '|' + a.message; if (seenAlerts.has(key)) continue; seenAlerts.add(key);
     if (!primed) continue;  // alerts that predate this page load are history, not news
     if (a.well) pulse(a.well);
-    if (a.severity !== 'info') speak(a.message);
+    if (a.severity !== 'info' || SAYS.has(a.kind)) {
+      said.push(a.message); cam.log.unshift({m: a.message, at: Date.now()}); cam.log.length = Math.min(cam.log.length, 3);
+    }
   }
   primed = true;
+  if (said.length) { speak(said.join(' ')); renderCamStat(); }  // one utterance per batch: a new one cuts the previous short
 }
 function renderTimeline(entries, selSeq) {
   const el = $('tlist'); const stick = el.scrollTop + el.clientHeight >= el.scrollHeight - 30; el.innerHTML = '';
@@ -414,7 +443,7 @@ async function retire(pid) { const reason = await askText('Retire part', 'Why is
 
 /* ---------- camera ---------- */
 const prev = {px: null, sent: 0};
-const cam = {sent: 0, ok: 0, at: 0, ms: 0, seen: [], prompts: [], err: '', busy: false};
+const cam = {sent: 0, ok: 0, at: 0, ms: 0, seen: [], prompts: [], err: '', busy: false, tally: null, deviceBox: null, log: []};
 function renderCamStat() {
   const el = $('camstat'); if (!camOn) { el.style.display = 'none'; return; }
   el.style.display = 'block';
@@ -432,8 +461,16 @@ function renderCamStat() {
     if (n) lines.push(`Last frame: ${n} part${n === 1 ? '' : 's'} found (${(cam.ms / 1000).toFixed(1)} s): ` + Object.entries(byCls).slice(0, 5).map(([c, k]) => `${c.replace('_', ' ')} ×${k}`).join(', ') + '. Dashed outlines show them.');
     else lines.push(`Last frame (${(cam.ms / 1000).toFixed(1)} s): none of this device's parts recognised. It looks for: ${cam.prompts.join(', ') || 'its configured parts'}.`);
   }
+  if (cam.ok > 0 && !cam.err) {  // open bench: the running count of what is on the laptop
+    const rows = tallyRows(cam.tally);
+    if (rows.length) {
+      const on = rows.filter(r => r.on).map(r => plural(r.name, r.on)).join(', '), gone = rows.filter(r => r.total > r.on).map(r => plural(r.name, r.total - r.on)).join(', ');
+      lines.push('On the laptop: ' + (on || 'nothing') + (gone ? ' · not on it any more: ' + gone : ''));
+    }
+  }
   lines.push(`Frames sent ${cam.sent} · checked ${cam.ok}`);
-  el.innerHTML = `<div class="t"><i class="dot ${dot}"></i>${esc(title)}</div>` + lines.map(l => `<div>${esc(l)}</div>`).join('');
+  el.innerHTML = `<div class="t"><i class="dot ${dot}"></i>${esc(title)}</div>` + lines.map(l => `<div>${esc(l)}</div>`).join('')
+    + cam.log.map((x, i) => `<div class="say${i ? '' : ' first'}">${esc(x.m)}</div>`).join('');
 }
 setInterval(() => { if (camOn) renderCamStat(); }, 1000);
 let facing = 'environment';  // phones open the FRONT camera unless the page asks for the rear one
@@ -459,7 +496,7 @@ async function toggleCam() {
   $('feed').style.display = 'none'; v.style.display = 'block'; $('ov').style.display = 'block'; $('btn-base').style.display = '';
   $('btn-flip').style.display = ''; $('btn-flip').textContent = sideLabel(camStream);
   if (actualSide(camStream)) facing = actualSide(camStream);  // remember the side we really got
-  Object.assign(cam, {sent: 0, ok: 0, at: 0, ms: 0, seen: [], err: '', busy: false}); prev.px = null; prev.sent = 0; canSend = true;
+  Object.assign(cam, {sent: 0, ok: 0, at: 0, ms: 0, seen: [], err: '', busy: false, tally: null, deviceBox: null}); prev.px = null; prev.sent = 0; canSend = true;
   renderCamStat();
   if (!sid) { notify('Start a job so I can analyse what the camera sees.'); showJobs(); }  // frames are only checked inside a job
   capLoop();
@@ -492,7 +529,7 @@ async function capLoop() {  // event-driven: send a frame only when the scene ch
   while (camOn) {
     await new Promise(r => setTimeout(r, 350));
     if (!sid || review !== null || document.hidden) { renderCamStat(); continue; }  // the panel says why nothing is sent
-    if (!canSend) continue;
+    if (!canSend || (cam.holdUntil || 0) > Date.now()) continue;
     g.drawImage($('cam'), 0, 0, 64, 40); const px = g.getImageData(0, 0, 64, 40).data; let diff = 0;
     if (prev.px) for (let i = 0; i < px.length; i += 4) diff += Math.abs(px[i] - prev.px[i]);
     const changed = !prev.px || diff / (64 * 40) > 3; prev.px = px;
@@ -503,11 +540,15 @@ async function capLoop() {  // event-driven: send a frame only when the scene ch
       const r = await api(`/sessions/${sid}/image`, {method: 'POST', body: await frameBlob(), headers: {'Content-Type': 'image/jpeg'}}, true);
       cam.ms = Math.round(performance.now() - t0);
       if (r.status === 503) { canSend = false; cam.err = 'This server has no perception backend, so nothing can be checked. Start it with CAIRN_PERCEPTION=sam.'; }
-      else if (r.status === 502) { const d = await r.json().catch(() => ({})); cam.err = 'The SAM call failed: ' + (d.detail || 'unknown error') + '. Retrying.'; }
+      else if (r.status === 502) {
+        const d = await r.json().catch(() => ({})), why = String(d.detail || 'unknown error').replace(/^perception failed: /, '');
+        cam.err = 'The SAM call failed: ' + why + ' Retrying.';
+        if (/billing/i.test(why)) cam.holdUntil = Date.now() + 20000;  // no point asking every few seconds while it is refused
+      }
       else if (r.status === 413) cam.err = 'A frame was too large for the server.';
       else if (r.status === 404) { cam.err = 'This job no longer exists on the server. Start a new job.'; }
       else if (r.ok) {
-        const d = await r.json(); cam.ok++; cam.at = Date.now(); cam.err = ''; cam.seen = d.seen || []; if (d.prompts && d.prompts.length) cam.prompts = d.prompts;
+        const d = await r.json(); cam.ok++; cam.at = Date.now(); cam.err = ''; cam.seen = d.seen || []; cam.tally = d.tally || null; cam.deviceBox = d.device_box || null; if (d.prompts && d.prompts.length) cam.prompts = d.prompts;
         handleAlerts(d.alerts); drawOverlay(lastSnap);
       } else cam.err = 'The server answered ' + r.status + '.';
     } catch (e) { cam.err = e.status === 401 ? 'The token was not accepted.' : 'Cannot reach the server. Retrying.'; }
@@ -519,6 +560,10 @@ function drawOverlay(s) {
   const r = v.getBoundingClientRect(), wr = $('feedwrap').getBoundingClientRect(), [cw, ch] = captureSize();
   ov.style.left = (r.left - wr.left) + 'px'; ov.style.top = (r.top - wr.top) + 'px'; ov.width = r.width; ov.height = r.height;
   const kx = r.width / cw, ky = r.height / ch, g = ov.getContext('2d'); g.clearRect(0, 0, ov.width, ov.height); g.lineWidth = 1; g.font = '10px system-ui';
+  if (cam.deviceBox) {  // open bench: where the laptop is, i.e. what counts as "on the laptop"
+    const [x0, y0, x1, y1] = [cam.deviceBox[0] * kx, cam.deviceBox[1] * ky, cam.deviceBox[2] * kx, cam.deviceBox[3] * ky];
+    g.setLineDash([2, 5]); g.strokeStyle = g.fillStyle = '#dad7de'; g.strokeRect(x0, y0, x1 - x0, y1 - y0); g.fillText('laptop', x0 + 3, y0 + 11);
+  }
   g.setLineDash([4, 3]);  // what SAM saw in the last frame, whether or not the task graph knows the part
   for (const d of cam.seen) {
     if (!d.box) continue; const [x0, y0, x1, y1] = [d.box[0] * kx, d.box[1] * ky, d.box[2] * kx, d.box[3] * ky];
@@ -529,7 +574,7 @@ function drawOverlay(s) {
   if (!s) return;
   for (const p of Object.values(s.parts)) {  // what the graph remembers (solid)
     if (!p.box) continue;
-    const col = p.state === 'lost' ? '#f0707a' : p.location === 'hand' ? '#dad7de' : p.location.startsWith('tray') ? '#ab8ff1' : '#aeaac0';
+    const col = p.state === 'lost' || p.location === 'out_of_view' ? '#f0707a' : p.location === 'hand' ? '#dad7de' : p.location.startsWith('tray') ? '#ab8ff1' : '#aeaac0';
     g.strokeStyle = col; g.fillStyle = col; const [x0, y0, x1, y1] = [p.box[0] * kx, p.box[1] * ky, p.box[2] * kx, p.box[3] * ky]; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
     const where = p.location.startsWith('tray') && p.well ? 'tray ' + String(p.well).padStart(2, '0') : p.location.replace('_', ' ');
     g.fillText((x1 - x0) > 20 * kx || p.location === 'hand' ? `${p.code} · ${p.label} · ${where}` : p.code, x0, Math.max(9, y0 - 3));
@@ -583,14 +628,23 @@ function locked() {
 async function showJobs() {
   let list = []; try { list = (await api('/sessions')).sessions; } catch (e) { if (e.status === 401) return locked(); }
   let devices = ['demo_laptop']; try { devices = (await api('/devices')).devices; } catch (e) {}
+  const names = {open_laptop: 'Any laptop (open bench)', demo_laptop: 'Demo laptop (scripted, 23 named screws)'};
   modal(`<h2 id="mtitle">New job</h2>
-    <label for="j-dev">Device</label><select id="j-dev">${devices.map(d => `<option>${esc(d)}</option>`).join('')}</select>
+    <label for="j-dev">Device</label><select id="j-dev" onchange="devHint()">${devices.map(d => `<option value="${esc(d)}">${esc(names[d] || d)}</option>`).join('')}</select>
+    <p class="muted" id="j-hint" style="margin:8px 0 0"></p>
     <label for="j-num">Job number</label><input id="j-num" placeholder="J-1042" autocomplete="off">
     <label for="j-tech">Technician</label><input id="j-tech" value="${esc(store.get('cairn.tech') || '')}" placeholder="Your name" autocomplete="name">
     <label for="j-bench">Bench</label><input id="j-bench" value="bench_01" autocomplete="off">
     <div class="row"><button class="primary" onclick="newJob()">Start job (snapshot the sealed device)</button></div>
     <h2 style="margin-top:26px">Resume</h2>${list.length ? list.map(s => `<div class="row" style="margin:4px 0"><button onclick="resume('${esc(s.id)}')">${esc(s.job_number || s.id)} · ${esc(s.phase.toLowerCase())}${s.closed ? ' · ' + esc(s.closed) : ''}</button></div>`).join('') : '<p class="muted">No jobs yet.</p>'}
     <h2 style="margin-top:26px">No bench handy?</h2><div class="row"><button onclick="startDemo()">Replay the scripted demo</button></div>`);
+  devHint();
+}
+function devHint() {
+  const h = $('j-hint'); if (!h) return;
+  h.textContent = $('j-dev').value === 'open_laptop'
+    ? 'Works on any laptop. Hold the camera close so the screws are visible. I count the screws, fans, cables and boards I can see and say what comes off. I cannot yet recognise batteries, drives, memory or the back cover.'
+    : 'A scripted task order for one known laptop. It will not match a different machine.';
 }
 async function newJob() {
   const tech = $('j-tech').value.trim(); if (!tech) { $('j-tech').setAttribute('aria-invalid', 'true'); $('j-tech').focus(); return; }
@@ -601,7 +655,7 @@ async function newJob() {
   } catch (e) { notify(friendly(e)); }
 }
 function resume(id) {
-  sid = id; store.set('cairn.sid', id); review = null; tlCount = -1; shownFrame = null; stepKey = ''; bannerKey = ''; primed = false; seenAlerts.clear();
+  sid = id; store.set('cairn.sid', id); review = null; tlCount = -1; shownFrame = null; stepKey = ''; bannerKey = ''; primed = false; seenAlerts.clear(); cam.log.length = 0; cam.tally = null; cam.deviceBox = null; cam.seen = [];
   hide(); $('review').style.display = 'none'; poll();
 }
 async function startDemo() {  // reuse the demo session of this browser instead of creating one per visit

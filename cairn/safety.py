@@ -40,7 +40,7 @@ def _k3(g: ObjectGraph, a: Action) -> Verdict:
 
 
 def _k1(g: ObjectGraph, a: Action) -> Verdict:
-    if a.kind == "remove" and not g.esd_on:
+    if a.kind == "remove" and g.device.require_esd and not g.esd_on:
         return Verdict(False, "K1_ESD", _EXPLAIN["K1_ESD"])
     return _ALLOW
 

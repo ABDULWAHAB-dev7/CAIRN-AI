@@ -24,7 +24,7 @@ def new(client, **kw):
 def test_health_and_device_list(client):
     h = client.get("/health").json()
     assert h["ok"] and h["auth"] is False and h["privacy"] == "cloud-allowed"
-    assert client.get("/devices").json() == {"devices": ["demo_laptop"]}
+    assert client.get("/devices").json() == {"devices": ["open_laptop", "demo_laptop"]}
 
 
 def test_create_session_validates_input(client):

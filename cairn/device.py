@@ -37,6 +37,8 @@ class Device:
     steps: tuple[StepSpec, ...]
     trays: dict[str, str] = field(default_factory=dict)  # tray slot -> part class
     wells: dict[str, tuple[int, ...]] = field(default_factory=dict)  # tray slot -> well numbers
+    require_esd: bool = True  # the safety kernel demands an ESD strap before any removal
+    open_bench: bool = False  # parts are not known in advance: slots are claimed as the camera discovers them
 
     def __post_init__(self):
         self._step_by_id = {s.id: s for s in self.steps}
@@ -135,7 +137,25 @@ def demo_laptop() -> Device:
     return Device("demo_laptop", "Demo laptop (23 fasteners)", parts, steps, trays, wells)
 
 
-DEVICES = {"demo_laptop": demo_laptop}
+def open_laptop() -> Device:
+    """Any laptop. Nothing is known in advance, so the device is a pool of anonymous slots (screws, fans, cables,
+    circuit boards) that the camera claims as it sees them. There is no task graph: the job is to find the laptop,
+    track every part it can see, and say what leaves it."""
+    parts: dict[str, PartSpec] = {}
+
+    def pool(cls: str, label: str, n: int, kind: str) -> None:
+        for i in range(1, n + 1):
+            pid = f"{cls}_{i:03d}"
+            parts[pid] = PartSpec(pid, cls, label, kind, "bench", requires_power_off=False)
+
+    pool("screw", "screw", 60, "fastener")
+    pool("fan", "fan", 2, "component")
+    pool("cable", "cable", 16, "component")
+    pool("circuit_board", "circuit board", 3, "component")
+    return Device("open_laptop", "Any laptop (open bench)", parts, (), require_esd=False, open_bench=True)
+
+
+DEVICES = {"open_laptop": open_laptop, "demo_laptop": demo_laptop}
 
 
 def get_device(device_id: str) -> Device:

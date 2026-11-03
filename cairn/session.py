@@ -48,6 +48,10 @@ class Alert:
     well: int | None = None  # well the overlay should pulse
 
 
+def _plural(label: str, n: int) -> str:
+    return f"{n} {label}{'' if n == 1 else 's'}"
+
+
 def _mm(x: float | None) -> str:
     return f"{x:g}mm" if x is not None else "?"
 
@@ -57,7 +61,10 @@ class Session:
         self.device = device
         self.log = EventLog() if log is None else log
         self.graph = ObjectGraph(device)
-        self.lost_grace_s = lost_grace_s
+        # Open bench: SAM misses a tiny screw in a hand for a frame or two. About two missed frames (7 s) before a part is
+        # called lost, or every blink would be a false alarm.
+        self.lost_grace_s = max(lost_grace_s, 7.0) if device.open_bench else lost_grace_s
+        self.vanish_grace_s = 9.0  # open bench: a still-visible laptop, a part gone this long = it is off the laptop
         self.track_map: dict[str, str] = {}
         self.part_track: dict[str, str] = {}
         self.last_seen: dict[str, float] = {}
@@ -67,6 +74,9 @@ class Session:
         self.frame_sink = None  # optional callable(Frame): the server keeps frames for the timeline
         self.extra_tracks: set[str] = set()
         self._warned: set[tuple] = set()
+        self._announced = False
+        self.seen_n: dict[str, int] = {}  # frames each slot has been seen in
+        self._coverage_ok = False  # this frame still shows most of the known parts (the camera did not move away)
         for e in self.log.events():  # memory survives a lunch break: rebuild from the log
             self._fold(e)
 
@@ -85,8 +95,11 @@ class Session:
         if e.type in ("part_zone", "track_bound") and e.payload.get("track_id"):
             self.track_map[e.payload["track_id"]] = e.payload["part_id"]
             self.part_track[e.payload["part_id"]] = e.payload["track_id"]
+        if e.type == "track_bound":
+            self.seen_n.setdefault(e.payload["part_id"], 0)
         if e.type == "part_zone":
             self.last_seen[e.payload["part_id"]] = e.ts
+            self.seen_n[e.payload["part_id"]] = max(3, self.seen_n.get(e.payload["part_id"], 0))
         if e.type == "exception_raised" and e.payload.get("track_id"):
             self.extra_tracks.add(e.payload["track_id"])
 
@@ -150,6 +163,7 @@ class Session:
                 alerts += self._extra_part(det, frame)
                 continue
             claimed.add(pid)
+            self.seen_n[pid] = self.seen_n.get(pid, 0) + 1
             self.last_seen[pid] = frame.ts
             if det.xy:
                 self.last_xy[pid] = det.xy
@@ -157,8 +171,39 @@ class Session:
                 self.last_box[pid] = det.box
             self._zone_update(self.graph.parts[pid], det.zone, det.hole, frame.ts,
                               frame.frame_id, det.confidence, det.track_id, alerts, well=det.well)
+        if self.device.open_bench:
+            alerts += self._vanished(frame.ts, claimed)
         alerts += self.tick(frame.ts)
+        if self.device.open_bench and not self._announced:
+            on = self.tally()
+            seen = ", ".join(_plural(v["label"], v["on_device"]) for v in on.values() if v["on_device"])
+            if seen:  # only once parts have been seen in more than one picture: a single frame can be a false positive
+                self._announced = True
+                alerts.append(Alert("seen", f"I can see {seen} on the laptop. Start taking it apart and I will say "
+                                            f"what you remove.", "info", ts=frame.ts))
         return alerts
+
+    def _vanished(self, ts: float, claimed: set[str]) -> list[Alert]:
+        """Close-up case: the laptop fills the view, so an unscrewed screw does not land 'outside' it, it just stops
+        being there. A stable part that has been missing for `vanish_grace_s` while the rest of the scene is still
+        visible is reported as no longer on the laptop. If most parts vanish at once, the camera moved: say nothing."""
+        g = self.graph
+        stable = [pid for pid, n in g.parts.items() if pid in g.discovered and self.seen_n.get(pid, 0) >= 3
+                  and n.state in (PartState.INSTALLED, PartState.REINSTALLED)]
+        self._coverage_ok = bool(stable) and sum(1 for p in stable if p in claimed) / len(stable) >= 0.5
+        if not self._coverage_ok:
+            return []
+        out = []
+        for pid in stable:
+            age = ts - self.last_seen.get(pid, ts)
+            if pid in claimed or age < self.vanish_grace_s:
+                continue
+            spec = g.parts[pid].spec
+            self._emit(ts, "part_zone", {"part_id": pid, "zone": "out_of_view", "confidence": 0.0, "frame": "vanished"})
+            out.append(Alert("removed", f"{spec.label.capitalize()} {self.device.code(pid)} is no longer on the laptop "
+                                        f"(not seen for {int(age)} s). {_plural(spec.label, self._on_device(spec.cls))} "
+                                        f"still on the laptop.", "info", pid, ts=ts))
+        return out
 
     def observe_manual(self, part_id: str, zone: str, ts: float, hole: str | None = None,
                        well: int | None = None) -> list[Alert]:
@@ -178,6 +223,19 @@ class Session:
 
         def rank(p: str):
             n = self.graph.parts[p]
+            if self.device.open_bench:
+                # anonymous slots: a part that just vanished is the likeliest identity for a new sighting of the
+                # same kind (it was moved); then a fresh slot; a slot lost long ago is the last resort
+                bound = p in self.part_track
+                age = frame.ts - self.last_seen.get(p, frame.ts - 1e6)
+                xy = self.last_xy.get(p)
+                dist = math.dist(det.xy, xy) if det.xy and xy else 0.0
+                size = max(det.box[2] - det.box[0], det.box[3] - det.box[1]) if det.box else 12.0
+                # the same screw, back where it was after the camera looked away for longer than the tracker remembers
+                same_spot = (bound and xy is not None and det.xy is not None and dist <= max(24.0, 2.0 * size)
+                             and n.state in (PartState.INSTALLED, PartState.REINSTALLED))
+                kind = 0 if n.state == PartState.LOST else 1 if (bound and age <= 15) or same_spot else 2 if not bound else 3
+                return (kind, round(dist, 1), p)
             lost = 0 if n.state == PartState.LOST else 1
             zone = 0 if n.zone == det.zone else 1
             xy = self.last_xy.get(p)
@@ -225,6 +283,10 @@ class Session:
             late = [d for d in self.device.dependents.get(step_id, ())
                     if self.graph.reverse_needs_work(self.device.step(d))] if step_id else []
             self._emit(ts, "part_zone", payload)
+            if self.device.open_bench:
+                alerts.append(Alert("installed", f"{spec.label.capitalize()} {self.device.code(pid)} is back on the laptop. "
+                                                 f"{_plural(spec.label, self._on_device(spec.cls))} on the laptop.",
+                                    "info", pid, ts=ts))
             if late:
                 self._raise(ts, "order_violation", "high",
                             f"{spec.label} reinstalled before '{self.device.step(late[0]).action}' was undone.",
@@ -241,6 +303,10 @@ class Session:
             alerts += self._removal(node, step, ts, frame_id)
             self._emit(ts, "part_zone", payload)
             self._step_alert(step, ts, alerts, reverse=False)
+            if not any(a.severity != "info" for a in alerts):  # a blocked/wrong step is already being announced
+                alerts.append(Alert("removed", f"Removed {spec.label} {self.device.code(pid)}. "
+                                               f"{_plural(spec.label, self._on_device(spec.cls))} still on the laptop.",
+                                    "info", pid, ts=ts))
         else:
             self._emit(ts, "part_zone", payload)
             if zone.startswith("tray_"):
@@ -402,8 +468,9 @@ class Session:
         out = [n for n in g.parts.values() if n.removed_once]
         missing = [n for n in out if n.state == PartState.LOST]
         transit = [n for n in out if n.state == PartState.IN_TRANSIT]
+        unseen = [n for n in out if n.state == PartState.REMOVED and n.zone == "out_of_view"]  # gone, but not known to be anywhere
         return {"removed": len(out), "missing": len(missing),
-                "accounted": len(out) - len(missing) - len(transit),
+                "accounted": len(out) - len(missing) - len(transit) - len(unseen),
                 "state": g.phase().value.lower().replace("_", " ")}
 
     def wells(self) -> list[dict]:
@@ -421,9 +488,32 @@ class Session:
                 for n in range(1, 25) if n not in used]
         return sorted(out, key=lambda x: x["n"])
 
+    def _known(self, pid: str) -> bool:
+        """Open-bench slots only count once the camera has claimed them."""
+        return not self.device.open_bench or (pid in self.graph.discovered and self.seen_n.get(pid, 0) >= 2)
+
+    def _on_device(self, cls: str) -> int:
+        return sum(1 for pid, n in self.graph.parts.items() if n.spec.cls == cls and self._known(pid)
+                   and n.state in (PartState.INSTALLED, PartState.REINSTALLED))
+
+    def tally(self) -> dict:
+        """Per kind of part: how many are on the device, in a hand, off the device, or lost (open bench only)."""
+        if not self.device.open_bench:
+            return {}
+        out: dict[str, dict] = {}
+        for pid, n in self.graph.parts.items():
+            if not self._known(pid):
+                continue
+            row = out.setdefault(n.spec.cls, {"label": n.spec.label, "on_device": 0, "in_hand": 0, "off_device": 0,
+                                              "not_visible": 0, "lost": 0})
+            row["on_device" if n.state in (PartState.INSTALLED, PartState.REINSTALLED) else
+                "in_hand" if n.state == PartState.IN_TRANSIT else "lost" if n.state == PartState.LOST else
+                "not_visible" if n.zone == "out_of_view" else "off_device"] += 1
+        return out
+
     def snapshot(self) -> dict:
         g = self.graph
-        parts = {pid: g.part_json(pid) for pid in g.parts}
+        parts = {pid: g.part_json(pid) for pid in g.parts if self._known(pid)}
         for pid, pj in parts.items():
             pj["box"] = self.last_box.get(pid)
         return {
@@ -432,6 +522,8 @@ class Session:
             "top": self.top_strip(),
             "wells": self.wells(),
             "closed": "verified" if g.verified else "with_exceptions" if g.closed_with_exceptions is not None else None,
+            "open_bench": self.device.open_bench,
+            "tally": self.tally(),
             "counts": g.counts(),
             "parts": parts,
             "exceptions": [vars(x) for x in g.exceptions.values()],
