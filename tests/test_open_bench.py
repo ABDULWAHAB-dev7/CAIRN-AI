@@ -373,3 +373,9 @@ def test_a_billing_refusal_from_meta_is_explained_and_shown_on_health(tmp_path):
     r = c.post(f"/sessions/{sid}/image", content=b"jpeg")
     assert r.status_code == 502 and "billing problem" in r.json()["detail"]
     assert "billing problem" in c.get("/health").json()["perception_warning"]
+
+
+def test_page_says_up_front_when_recognition_is_offline():
+    html = (UI / "bench.html").read_text(encoding="utf-8")
+    for text in ('id="hwarn"', "perception_warning", "Recognition is offline."):
+        assert text in html, text
