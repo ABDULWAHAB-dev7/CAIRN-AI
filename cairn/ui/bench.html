@@ -51,6 +51,8 @@
   #camstat{position:absolute;right:12px;bottom:12px;max-width:min(360px,72%);padding:10px 12px;border-radius:var(--radius-sm);background:rgba(13,13,18,.94);
     border:1px solid var(--line-strong);font-size:12px;line-height:1.45;color:var(--color-pearl);display:none}
   #camstat .t{font-weight:600;color:var(--color-chalk);display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:13px}
+  #hwarn{position:absolute;left:12px;bottom:12px;max-width:min(380px,66%);padding:10px 12px;border-radius:var(--radius-sm);background:rgba(13,13,18,.94);
+    border:1px solid var(--color-critical);font-size:12px;line-height:1.45;color:var(--color-chalk);display:none}
   #camstat .say{color:var(--color-chalk)}#camstat .say.first{border-top:1px solid var(--line);margin-top:6px;padding-top:6px}
   #parts-out .tl{margin:0 0 8px;color:var(--color-pearl)}#parts-out .tl b{color:var(--color-chalk);font-weight:600}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--color-lavender-beam);display:inline-block;flex:none}
@@ -109,7 +111,7 @@
   <div id="parts-out" aria-live="polite"></div></aside>
 <main id="feedwrap" class="panel" aria-label="Bench feed">
   <img id="feed" alt="Overhead view of the bench with outlines on every tracked part"><video id="cam" playsinline muted aria-label="Live camera"></video><canvas id="ov" aria-hidden="true"></canvas>
-  <div id="banner" role="alert"></div><div id="review"></div><div id="camstat" role="status" aria-live="polite"></div>
+  <div id="banner" role="alert"></div><div id="review"></div><div id="camstat" role="status" aria-live="polite"></div><div id="hwarn" role="status" aria-live="polite"></div>
 </main>
 <section id="step" class="panel" aria-label="Next step"><h2>Next step</h2><div id="stepbody" aria-live="polite"></div></section>
 <section id="tl" class="panel" aria-label="Timeline"><h2>Timeline</h2><div id="tlist" role="list"></div></section>
@@ -473,6 +475,13 @@ function renderCamStat() {
     + cam.log.map((x, i) => `<div class="say${i ? '' : ' first'}">${esc(x.m)}</div>`).join('');
 }
 setInterval(() => { if (camOn) renderCamStat(); }, 1000);
+async function checkHealth() {  // /health is public: say up front that recognition is down, not only after a frame fails
+  let warn = '';
+  try { const r = await fetch('/health', {cache: 'no-store'}); if (!r.ok) return; warn = (await r.json()).perception_warning || ''; }
+  catch (e) { return; }  // offline or the static replay (no /health): nothing to say
+  const el = $('hwarn'); el.textContent = warn ? 'Recognition is offline. ' + warn : ''; el.style.display = warn ? 'block' : 'none';
+}
+checkHealth(); setInterval(checkHealth, 30000);
 let facing = 'environment';  // phones open the FRONT camera unless the page asks for the rear one
 async function openStream() {
   // Ask for the wanted side first; fall back to any camera (a laptop has only one). A refusal is not retried.

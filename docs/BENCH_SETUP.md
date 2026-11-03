@@ -92,7 +92,14 @@ On the phone: open the address + `/bench`, enter the token when asked, start a j
 Know before you rely on it:
 - Anyone with the address **and** the token can use your SAM credits. Without the token every API route returns 401, but
   `/bench`, `/health` and `/v/<id>` are public by design. Use a fresh random token, and stop the tunnel when you are done.
-- The address changes every time the tunnel restarts; the PC must stay on and awake.
+- **The address changes, and a link you were given can be dead within minutes.** On 2026-11-03 the localhost.run address
+  rotated after 6 minutes, then 20 minutes, while the same ssh connection stayed open; the old address then answers 502. A
+  phone test needs a tunnel whose address holds. `ssh -o ServerAliveInterval=15 -R 80:127.0.0.1:8820 serveo.net` (no account,
+  no download) gave an address that serves the page and API; **how long it holds was not measured**. It shows a one-time browser
+  warning page ("Continue to Site"), and its address contains your public IP. pinggy.io (`ssh -p 443 -R0:127.0.0.1:8820 a.pinggy.io`)
+  keeps an address for 60 minutes and also shows a warning page. Whichever you use, re-read the address before each test.
+  A permanent address needs an account (a reserved name) or your own domain.
+- The PC must stay on and awake.
 - Camera frames pass through the tunnel provider. This is not the privacy mode.
 - **One frame costs about 13 SAM requests** (one per part class), sent in parallel. Measured on 2026-11-03 with the 13 default
   prompts: **2.3 to 3.0 s per frame** once warm; the first frame after a server start took 23 s. Sent one after another it was
