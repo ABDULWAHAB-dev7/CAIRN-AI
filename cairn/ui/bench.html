@@ -47,6 +47,13 @@
   #banner.warn{border-color:var(--color-lavender-beam)}
   #banner .acts{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
   #review{position:absolute;left:12px;bottom:12px;background:rgba(13,13,18,.94);border:1px solid var(--color-lavender-beam);padding:8px 12px;border-radius:var(--radius-sm);display:none;color:var(--color-chalk);font-size:13px}
+  /* camera status: so it is always clear whether anything is being checked */
+  #camstat{position:absolute;right:12px;bottom:12px;max-width:min(360px,72%);padding:10px 12px;border-radius:var(--radius-sm);background:rgba(13,13,18,.94);
+    border:1px solid var(--line-strong);font-size:12px;line-height:1.45;color:var(--color-pearl);display:none}
+  #camstat .t{font-weight:600;color:var(--color-chalk);display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:13px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--color-lavender-beam);display:inline-block;flex:none}
+  .dot.busy{animation:blink 1s infinite}.dot.wait{background:var(--color-fog)}.dot.err{background:var(--color-critical)}
+  @keyframes blink{50%{opacity:.25}}
   /* step card */
   #step{grid-area:step;display:flex;flex-direction:column;justify-content:center;padding:20px}
   #step.red{background:var(--color-critical-wash);border-color:var(--color-critical)}
@@ -100,7 +107,7 @@
   <div id="parts-out" aria-live="polite"></div></aside>
 <main id="feedwrap" class="panel" aria-label="Bench feed">
   <img id="feed" alt="Overhead view of the bench with outlines on every tracked part"><video id="cam" playsinline muted aria-label="Live camera"></video><canvas id="ov" aria-hidden="true"></canvas>
-  <div id="banner" role="alert"></div><div id="review"></div>
+  <div id="banner" role="alert"></div><div id="review"></div><div id="camstat" role="status" aria-live="polite"></div>
 </main>
 <section id="step" class="panel" aria-label="Next step"><h2>Next step</h2><div id="stepbody" aria-live="polite"></div></section>
 <section id="tl" class="panel" aria-label="Timeline"><h2>Timeline</h2><div id="tlist" role="list"></div></section>
@@ -407,6 +414,28 @@ async function retire(pid) { const reason = await askText('Retire part', 'Why is
 
 /* ---------- camera ---------- */
 const prev = {px: null, sent: 0};
+const cam = {sent: 0, ok: 0, at: 0, ms: 0, seen: [], prompts: [], err: '', busy: false};
+function renderCamStat() {
+  const el = $('camstat'); if (!camOn) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  const ago = cam.at ? Math.max(0, Math.round((Date.now() - cam.at) / 1000)) : null;
+  let dot = 'on', title = '', lines = [];
+  if (cam.err) { dot = 'err'; title = 'Problem'; lines.push(cam.err); }
+  else if (!sid) { dot = 'wait'; title = 'Camera on, but nothing is being checked'; lines.push('Tap Jobs and start a job. Frames are only analysed inside a job.'); }
+  else if (review !== null) { dot = 'wait'; title = 'Paused: reviewing a past moment'; lines.push('Tap Back to live to resume.'); }
+  else if (document.hidden) { dot = 'wait'; title = 'Paused: this tab is in the background'; }
+  else if (cam.busy) { dot = 'busy'; title = 'Checking frame ' + cam.sent + '…'; lines.push('Each check takes a few seconds.'); }
+  else if (cam.ok === 0) { dot = 'wait'; title = 'Watching: waiting for the first check'; lines.push('A frame is sent when the scene changes, or every 4 s.'); }
+  else title = 'Watching · last check ' + ago + ' s ago';
+  if (cam.ok > 0 && !cam.err) {
+    const n = cam.seen.length, byCls = {}; cam.seen.forEach(d => { byCls[d.cls] = (byCls[d.cls] || 0) + 1; });
+    if (n) lines.push(`Last frame: ${n} part${n === 1 ? '' : 's'} found (${(cam.ms / 1000).toFixed(1)} s): ` + Object.entries(byCls).slice(0, 5).map(([c, k]) => `${c.replace('_', ' ')} ×${k}`).join(', ') + '. Dashed outlines show them.');
+    else lines.push(`Last frame (${(cam.ms / 1000).toFixed(1)} s): none of this device's parts recognised. It looks for: ${cam.prompts.join(', ') || 'its configured parts'}.`);
+  }
+  lines.push(`Frames sent ${cam.sent} · checked ${cam.ok}`);
+  el.innerHTML = `<div class="t"><i class="dot ${dot}"></i>${esc(title)}</div>` + lines.map(l => `<div>${esc(l)}</div>`).join('');
+}
+setInterval(() => { if (camOn) renderCamStat(); }, 1000);
 let facing = 'environment';  // phones open the FRONT camera unless the page asks for the rear one
 async function openStream() {
   // Ask for the wanted side first; fall back to any camera (a laptop has only one). A refusal is not retried.
@@ -423,13 +452,16 @@ function sideLabel(stream) {  // what the browser actually gave us, which may di
   return m === 'environment' ? 'Rear camera' : m === 'user' ? 'Front camera' : 'Switch camera';
 }
 async function toggleCam() {
-  if (camOn) { camStream.getTracks().forEach(t => t.stop()); camOn = false; shownFrame = null; $('cam').style.display = 'none'; $('ov').style.display = 'none'; $('feed').style.display = 'block'; $('btn-base').style.display = 'none'; $('btn-flip').style.display = 'none'; return; }
+  if (camOn) { camStream.getTracks().forEach(t => t.stop()); camOn = false; shownFrame = null; $('cam').style.display = 'none'; $('ov').style.display = 'none'; $('feed').style.display = 'block'; $('btn-base').style.display = 'none'; $('btn-flip').style.display = 'none'; renderCamStat(); return; }
   try { camStream = await openStream(); }
   catch (e) { notify('Camera unavailable: ' + (e.message || e.name)); return; }
   const v = $('cam'); v.srcObject = camStream; await v.play(); camOn = true;
   $('feed').style.display = 'none'; v.style.display = 'block'; $('ov').style.display = 'block'; $('btn-base').style.display = '';
   $('btn-flip').style.display = ''; $('btn-flip').textContent = sideLabel(camStream);
   if (actualSide(camStream)) facing = actualSide(camStream);  // remember the side we really got
+  Object.assign(cam, {sent: 0, ok: 0, at: 0, ms: 0, seen: [], err: '', busy: false}); prev.px = null; prev.sent = 0; canSend = true;
+  renderCamStat();
+  if (!sid) { notify('Start a job so I can analyse what the camera sees.'); showJobs(); }  // frames are only checked inside a job
   capLoop();
 }
 async function flipCam() {
@@ -447,46 +479,67 @@ async function flipCam() {
   notify(got && got !== asked ? `This device has no ${asked === 'user' ? 'front' : 'rear'} camera; staying on the ${got === 'user' ? 'front' : 'rear'} one.`
                               : sideLabel(camStream) + ' on. Tap Baseline again if you moved the phone.');
 }
+function captureSize() {  // longest side 960 px, aspect ratio kept
+  const v = $('cam'), vw = v.videoWidth || 1280, vh = v.videoHeight || 720, k = 960 / Math.max(vw, vh);
+  return [Math.round(vw * k), Math.round(vh * k)];
+}
 function frameBlob(quality = .8) {
-  const v = $('cam'), c = document.createElement('canvas'); c.width = 960; c.height = 600; c.getContext('2d').drawImage(v, 0, 0, 960, 600);
+  const v = $('cam'), [w, h] = captureSize(), c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(v, 0, 0, w, h);
   return new Promise(r => c.toBlob(r, 'image/jpeg', quality));
 }
 async function capLoop() {  // event-driven: send a frame only when the scene changed (or every 4 s)
   const c = document.createElement('canvas'); c.width = 64; c.height = 40; const g = c.getContext('2d', {willReadFrequently: true});
   while (camOn) {
     await new Promise(r => setTimeout(r, 350));
-    if (review !== null || !canSend || !sid || document.hidden) continue;
+    if (!sid || review !== null || document.hidden) { renderCamStat(); continue; }  // the panel says why nothing is sent
+    if (!canSend) continue;
     g.drawImage($('cam'), 0, 0, 64, 40); const px = g.getImageData(0, 0, 64, 40).data; let diff = 0;
     if (prev.px) for (let i = 0; i < px.length; i += 4) diff += Math.abs(px[i] - prev.px[i]);
     const changed = !prev.px || diff / (64 * 40) > 3; prev.px = px;
     if (!changed && Date.now() - prev.sent < 4000) continue;
-    prev.sent = Date.now();
+    prev.sent = Date.now(); cam.busy = true; cam.sent++; renderCamStat();
+    const t0 = performance.now();
     try {
       const r = await api(`/sessions/${sid}/image`, {method: 'POST', body: await frameBlob(), headers: {'Content-Type': 'image/jpeg'}}, true);
-      if (r.status === 503) { canSend = false; notify('Camera preview only: the server has no perception backend (set CAIRN_PERCEPTION=sam).'); }
-      else if (r.status === 502) notify('Perception call failed; check the SAM key and network.');
-      else if (r.status === 413) notify('Frame too large for the server.');
-      else if (r.ok) { const d = await r.json(); handleAlerts(d.alerts); }
-    } catch (e) { /* offline: the next frame retries */ }
+      cam.ms = Math.round(performance.now() - t0);
+      if (r.status === 503) { canSend = false; cam.err = 'This server has no perception backend, so nothing can be checked. Start it with CAIRN_PERCEPTION=sam.'; }
+      else if (r.status === 502) { const d = await r.json().catch(() => ({})); cam.err = 'The SAM call failed: ' + (d.detail || 'unknown error') + '. Retrying.'; }
+      else if (r.status === 413) cam.err = 'A frame was too large for the server.';
+      else if (r.status === 404) { cam.err = 'This job no longer exists on the server. Start a new job.'; }
+      else if (r.ok) {
+        const d = await r.json(); cam.ok++; cam.at = Date.now(); cam.err = ''; cam.seen = d.seen || []; if (d.prompts && d.prompts.length) cam.prompts = d.prompts;
+        handleAlerts(d.alerts); drawOverlay(lastSnap);
+      } else cam.err = 'The server answered ' + r.status + '.';
+    } catch (e) { cam.err = e.status === 401 ? 'The token was not accepted.' : 'Cannot reach the server. Retrying.'; }
+    finally { cam.busy = false; renderCamStat(); }
   }
 }
 function drawOverlay(s) {
   const v = $('cam'), ov = $('ov'); if (!v.videoWidth) return;
-  const r = v.getBoundingClientRect(), wr = $('feedwrap').getBoundingClientRect();
+  const r = v.getBoundingClientRect(), wr = $('feedwrap').getBoundingClientRect(), [cw, ch] = captureSize();
   ov.style.left = (r.left - wr.left) + 'px'; ov.style.top = (r.top - wr.top) + 'px'; ov.width = r.width; ov.height = r.height;
-  const k = r.width / 960, g = ov.getContext('2d'); g.clearRect(0, 0, ov.width, ov.height); g.lineWidth = 1; g.font = '10px system-ui';
-  for (const p of Object.values(s.parts)) {
+  const kx = r.width / cw, ky = r.height / ch, g = ov.getContext('2d'); g.clearRect(0, 0, ov.width, ov.height); g.lineWidth = 1; g.font = '10px system-ui';
+  g.setLineDash([4, 3]);  // what SAM saw in the last frame, whether or not the task graph knows the part
+  for (const d of cam.seen) {
+    if (!d.box) continue; const [x0, y0, x1, y1] = [d.box[0] * kx, d.box[1] * ky, d.box[2] * kx, d.box[3] * ky];
+    g.strokeStyle = g.fillStyle = '#ab8ff1'; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    g.fillText(`${d.cls.replace('_', ' ')} ${Math.round(d.conf * 100)}%`, x0, Math.max(9, y0 - 3));
+  }
+  g.setLineDash([]);
+  if (!s) return;
+  for (const p of Object.values(s.parts)) {  // what the graph remembers (solid)
     if (!p.box) continue;
     const col = p.state === 'lost' ? '#f0707a' : p.location === 'hand' ? '#dad7de' : p.location.startsWith('tray') ? '#ab8ff1' : '#aeaac0';
-    g.strokeStyle = col; g.fillStyle = col; const [x0, y0, x1, y1] = p.box.map(n => n * k); g.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    g.strokeStyle = col; g.fillStyle = col; const [x0, y0, x1, y1] = [p.box[0] * kx, p.box[1] * ky, p.box[2] * kx, p.box[3] * ky]; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
     const where = p.location.startsWith('tray') && p.well ? 'tray ' + String(p.well).padStart(2, '0') : p.location.replace('_', ' ');
-    g.fillText((x1 - x0) > 20 * k || p.location === 'hand' ? `${p.code} · ${p.label} · ${where}` : p.code, x0, Math.max(9, y0 - 3));
+    g.fillText((x1 - x0) > 20 * kx || p.location === 'hand' ? `${p.code} · ${p.label} · ${where}` : p.code, x0, Math.max(9, y0 - 3));
   }
 }
-addEventListener('resize', () => { if (camOn && lastSnap) drawOverlay(lastSnap); });
+addEventListener('resize', () => { if (camOn) drawOverlay(lastSnap); });
 $('btn-cam').onclick = toggleCam;
 $('btn-flip').onclick = flipCam;
 $('btn-base').onclick = async () => {
+  if (!sid) { notify('Start a job first, then tap Baseline.'); showJobs(); return; }
   try { const r = await api(`/sessions/${sid}/baseline`, {method: 'POST', body: await frameBlob(.9), headers: {'Content-Type': 'image/jpeg'}}, true); notify(r.ok ? 'Baseline of the sealed device saved.' : 'Baseline failed.'); }
   catch (e) { notify(friendly(e)); }
 };
