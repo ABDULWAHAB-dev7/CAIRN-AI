@@ -97,5 +97,33 @@ Know before you rely on it:
   prompts: **2.3 to 3.0 s per frame** once warm; the first frame after a server start took 23 s. Sent one after another it was
   27 s per frame. Roughly 3 s per check means a dropped part is flagged a few seconds after it leaves the frame, close to the
   blueprint's 5 s target but not measured on a real bench.
-- The built-in task graph is the demo laptop (23 specific fasteners). A different device on your bench will not match it until
-  the prompts and calibration are adapted.
+- The scripted task graph is the demo laptop (23 specific fasteners). A different machine will not match it, so for a real laptop
+  start the job with **Any laptop (open bench)** instead (next section).
+- If Meta answers `402 billing_not_configured`, every SAM call is refused until the billing problem on the Meta developer
+  account is fixed (dev.meta.ai/billing). The page then says so in the camera panel, and `/health` shows it under
+  `perception_warning`. Nothing in this repository can work around that.
+
+## Open bench: any laptop (no task list)
+
+Device **Any laptop (open bench)** does not need a known model. SAM looks for `laptop`, `screw`, `fan`, `cable` and
+`circuit board` (plus `hand`), the app gives each thing it sees a slot, and then narrates by counting:
+
+- after two pictures: "I can see 31 screws, 1 fan, 11 cables on the laptop. Start taking it apart and I will say what you remove."
+- a screw seen in a hand or off the laptop: "Removed screw p_07. 30 screws still on the laptop."
+- a screw that simply stops being there while the rest of the laptop is still in view for 9 s: "Screw p_07 is no longer on the
+  laptop (not seen for 9 s)." (the close-up case, where nothing "leaves" the frame). If most parts vanish together the
+  camera moved, and nothing is announced.
+- a screw that comes back: "Screw p_07 is back on the laptop."
+
+No ESD strap or power-off step is demanded in this mode, because the app has no task list for the machine.
+
+**Measured on four public Wikimedia Commons photos of open laptops (2026-11-03; the photos are not committed):**
+SAM reliably found laptop, screw (34 in one close-up), fan, cable and circuit board, and found nothing for battery, hard drive,
+DVD drive, back cover or memory module. Screws are only found when the camera is close; in a wide shot they are too small.
+A close-up fills the frame with the motherboard, so there is no "laptop" box and "on the laptop" then means the whole picture.
+Re-encoding the same picture finds roughly 31 of 34 screws again, which is why a part must be missing for several seconds
+before it is reported. Calls were typically 3 to 6 s per picture, with occasional 23 to 26 s outliers.
+
+**Not verified:** a phone camera pointed at a real laptop being unscrewed. The end-to-end narration was exercised against the
+real SAM API with still photos, and against scripted detections for removal.
+

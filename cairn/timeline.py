@@ -33,6 +33,8 @@ def build_timeline(device: Device, events: list[Event]) -> list[dict]:
                     add(e, "placed", f"Placed {name} in {where}", p.get("frame"))
             elif zone in ("hand", "bench") and before in AT_REST:
                 add(e, "removed", f"Removed {name}", p.get("frame"))
+            elif zone == "out_of_view" and before in AT_REST:  # open bench: it stopped being there, no picture of the moment
+                add(e, "removed", f"{name.capitalize()} no longer on the laptop (not seen for several seconds)")
             elif zone == "device" and before not in AT_REST:
                 add(e, "returned", f"Reinstalled {name}", p.get("frame"))
         elif t == "part_lost":
@@ -49,8 +51,8 @@ def build_timeline(device: Device, events: list[Event]) -> list[dict]:
             label = base.reverse_action if sid.startswith("r_") else base.action
             add(e, "step", f"Logged: {label}")
         elif t == "baseline":
-            add(e, "baseline", f"Baseline snapshot of the sealed device ({p['parts']} parts, {p['fasteners']} fasteners)",
-                p.get("frame"))
+            add(e, "baseline", "Job started on an open bench: the camera finds the parts as it goes" if device.open_bench else
+                f"Baseline snapshot of the sealed device ({p['parts']} parts, {p['fasteners']} fasteners)", p.get("frame"))
         elif t == "boot_test":
             add(e, "step", "Boot test " + ("passed" if p["passed"] else "FAILED"), None,
                 "info" if p["passed"] else "warn")

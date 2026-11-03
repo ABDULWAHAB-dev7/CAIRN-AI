@@ -71,6 +71,7 @@ class ObjectGraph:
         self.hazard: str | None = None
         self.boot_test: bool | None = None
         self.verified = False
+        self.discovered: set[str] = set()  # open-bench slots the camera has actually claimed
         self.closed_with_exceptions: str | None = None  # technician's note when closed over open exceptions
         self.registration: dict = {}
         self.started_ts: float | None = None
@@ -106,6 +107,8 @@ class ObjectGraph:
                 n.state = PartState.REMOVED
             if was_at_rest and zone != "device":
                 n.removed_once = True
+        elif t == "track_bound":
+            self.discovered.add(p["part_id"])
         elif t == "part_lost":
             self.parts[p["part_id"]].state = PartState.LOST
             self.parts[p["part_id"]].last_change_ts = e.ts
@@ -231,7 +234,8 @@ class ObjectGraph:
         }
 
     def counts(self) -> dict:
-        f = [n for n in self.parts.values() if n.spec.kind == "fastener"]
+        f = [n for pid, n in self.parts.items() if n.spec.kind == "fastener"
+             and (not self.device.open_bench or pid in self.discovered)]
         return {
             "fasteners_total": len(f),
             "fasteners_accounted": sum(1 for n in f if n.state in AT_REST),
