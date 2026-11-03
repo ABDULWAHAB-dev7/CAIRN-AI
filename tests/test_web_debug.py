@@ -137,3 +137,32 @@ def test_static_export_serves_bench_from_any_path_and_is_read_only(tmp_path):
     session = json.loads((out / "data" / "session.json").read_text(encoding="utf-8"))
     assert session["latest_frame"] and session["closed"] == "verified"
     assert (out / "data" / "at" / "0.json").exists()
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_camera_asks_for_the_rear_camera_first_and_falls_back_sensibly():
+    """Phones open the FRONT camera unless asked for the rear one; a laptop has only one camera."""
+    html = (UI / "bench.html").read_text(encoding="utf-8")
+    assert 'id="btn-flip"' in html and "flipCam" in html
+    start, end = html.index("let facing"), html.index("async function toggleCam")
+    harness = """
+const log = []; let mode = 'ok';
+const navigator = {mediaDevices: {getUserMedia: async (c) => {
+  const want = c.video.facingMode && c.video.facingMode.ideal; log.push(want || 'any');
+  if (mode === 'denied') throw Object.assign(new Error('denied'), {name: 'NotAllowedError'});
+  if (mode === 'laptop' && want) throw Object.assign(new Error('x'), {name: 'OverconstrainedError'});
+  return {getVideoTracks: () => [{getSettings: () => ({facingMode: want})}]};
+}}};
+(async () => {
+  const res = {};
+  await openStream(); res.phone = log.splice(0);
+  facing = 'user'; await openStream(); res.flipped = log.splice(0);
+  mode = 'laptop'; facing = 'environment'; await openStream(); res.laptop = log.splice(0);
+  mode = 'denied'; try { await openStream(); } catch (e) { res.denied = [log.splice(0).length, e.name]; }
+  console.log(JSON.stringify(res));
+})();
+"""
+    out = subprocess.run(["node", "-e", html[start:end] + harness], capture_output=True, text=True, timeout=20)
+    assert out.returncode == 0, out.stderr
+    assert json.loads(out.stdout) == {"phone": ["environment"], "flipped": ["user"],
+                                      "laptop": ["environment", "any"], "denied": [1, "NotAllowedError"]}
