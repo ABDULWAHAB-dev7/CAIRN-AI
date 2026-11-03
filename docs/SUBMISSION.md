@@ -15,6 +15,8 @@ tap**, and the eval table says "perception: not proven". If the kill test passes
 | Single-view bench screen, tray map, timeline with frames, voice bar, close job | built, tested in a browser on the simulator |
 | Passport PDF + JSON with QR, evidence frames, hash chain, status line | built, tested |
 | Eval table, ten sessions | harness built; sessions are **synthetic**. TODO: record ten real teardowns |
+| Open bench: narrate any laptop (count, removed, no longer on the laptop) | built, tested; **not run on a real unscrewing**. SAM found laptop, screws, fan, cable, board on real photos and **not** battery, drives, cover or memory |
+| Meta API access | **blocked 2026-11-03: `402 billing_not_configured`** until the billing problem is fixed at dev.meta.ai/billing |
 | Day 1 kill test (SAM 3.1 on a real bench) | **TODO**, see `docs/BENCH_SETUP.md` |
 | 3-minute video | **TODO**: shot list below |
 | 30-second clip, thread | **TODO**: drafts below |
