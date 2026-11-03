@@ -70,3 +70,31 @@ failures included.
 
 No real camera, no live SAM or Wonder call, no Glimmer model, and no Docker build was run in the environment this
 was written in (the Docker daemon was not available; `docker compose config` validates).
+
+## Using a phone with no desktop in front of you (tunnel)
+
+A phone browser only allows camera access over HTTPS, so a plain `http://<pc-ip>:8000` link will not work. Vercel cannot host
+the live backend either (it needs a persistent database file and frames arriving every few seconds). The working route used
+for the first phone test, from a PC that stays on:
+
+```bash
+# 1. public HTTPS address that forwards to the local server (uses the built-in ssh; use 127.0.0.1, not "localhost")
+ssh -o ServerAliveInterval=30 -R 80:127.0.0.1:8820 nokey@localhost.run     # prints https://<random>.lhr.life
+
+# 2. the server, with perception, a token and that address (for the passport QR)
+MODEL_API_KEY=... CAIRN_PERCEPTION=sam CAIRN_API_TOKEN=<random token> CAIRN_PUBLIC_URL=https://<random>.lhr.life \
+  cairn serve --host 127.0.0.1 --port 8820
+```
+
+On the phone: open the address + `/bench`, enter the token when asked, start a job, tap **Camera**, then **Baseline**.
+
+Know before you rely on it:
+- Anyone with the address **and** the token can use your SAM credits. Without the token every API route returns 401, but
+  `/bench`, `/health` and `/v/<id>` are public by design. Use a fresh random token, and stop the tunnel when you are done.
+- The address changes every time the tunnel restarts; the PC must stay on and awake.
+- Camera frames pass through the tunnel provider. This is not the privacy mode.
+- **One frame costs about 13 SAM requests** (one per part class). Sent one after another that took 27 s per frame; they are now
+  sent in parallel (about 6 s per frame). That is still slower than the blueprint's 5 s missing-part target, so with 13
+  classes a dropped part will usually be flagged late. Fewer classes means faster frames.
+- The built-in task graph is the demo laptop (23 specific fasteners). A different device on your bench will not match it until
+  the prompts and calibration are adapted.

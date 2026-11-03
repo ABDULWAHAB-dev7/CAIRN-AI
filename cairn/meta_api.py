@@ -12,6 +12,7 @@ import json
 import os
 import re
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from typing import Callable
 
 from .perception import Box, RawTrack
@@ -160,20 +161,25 @@ class Sam31Backend:
     frames and are the next step once the kill test passes.
     """
 
-    def __init__(self, client: MetaClient, model: str = "sam-3.1", mime: str = "image/jpeg"):
-        self.client, self.model, self.mime = client, model, mime
+    def __init__(self, client: MetaClient, model: str = "sam-3.1", mime: str = "image/jpeg", max_parallel: int = 16):
+        self.client, self.model, self.mime, self.max_parallel = client, model, mime, max_parallel
+
+    def _one(self, data_url: str, prompt: str) -> list[RawTrack]:
+        body = {
+            "model": self.model,
+            "metadata": {"include_confidence": "true"},
+            "input": [{"type": "message", "role": "user", "content": [
+                {"type": "input_text", "text": prompt},
+                {"type": "input_image", "image_url": data_url}]}],
+        }
+        return [RawTrack(f"{prompt}:{oid}", prompt, box, conf)
+                for _, oid, box, conf in parse_segmentation(self.client.stream_text(body))]
 
     def track(self, image: bytes, prompts: list[str]) -> list[RawTrack]:
+        """One request per concept, sent in parallel: measured serially, 13 prompts took ~27 s per frame."""
         data_url = f"data:{self.mime};base64,{base64.b64encode(image).decode()}"
-        tracks = []
-        for prompt in prompts:
-            body = {
-                "model": self.model,
-                "metadata": {"include_confidence": "true"},
-                "input": [{"type": "message", "role": "user", "content": [
-                    {"type": "input_text", "text": prompt},
-                    {"type": "input_image", "image_url": data_url}]}],
-            }
-            for _, oid, box, conf in parse_segmentation(self.client.stream_text(body)):
-                tracks.append(RawTrack(f"{prompt}:{oid}", prompt, box, conf))
-        return tracks
+        if not prompts:
+            return []
+        with ThreadPoolExecutor(max_workers=min(len(prompts), self.max_parallel)) as pool:
+            results = list(pool.map(lambda p: self._one(data_url, p), prompts))  # keeps prompt order; raises on failure
+        return [t for r in results for t in r]

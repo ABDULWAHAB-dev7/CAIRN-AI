@@ -69,3 +69,38 @@ def test_wonder_text_answer_is_returned():
 
     assert WonderClient(MetaClient(transport=transport)).complete(
         [{"role": "system", "content": "s"}, {"role": "user", "content": "hi"}], WONDER_TOOLS) == {"text": "Hello."}
+
+
+def test_sam_backend_sends_prompts_in_parallel_and_keeps_their_order():
+    import threading
+    import time
+
+    lock, peak, live = threading.Lock(), [0], [0]
+
+    def transport(path, body, stream):
+        with lock:
+            live[0] += 1
+            peak[0] = max(peak[0], live[0])
+        time.sleep(0.25)
+        with lock:
+            live[0] -= 1
+        return SAMPLE
+
+    prompts = [f"p{i}" for i in range(8)]
+    t0 = time.perf_counter()
+    tracks = Sam31Backend(MetaClient(transport=transport)).track(b"img", prompts)
+    elapsed = time.perf_counter() - t0
+    assert elapsed < 1.0 and peak[0] > 1  # serial would take 8 x 0.25 = 2 s
+    assert [t.label for t in tracks if t.track_id.endswith(":0")] == prompts  # order preserved
+
+
+def test_sam_backend_surfaces_a_failing_prompt_instead_of_hiding_it():
+    import pytest
+
+    def transport(path, body, stream):
+        if body["input"][0]["content"][0]["text"] == "bad":
+            raise RuntimeError("429 from Meta")
+        return SAMPLE
+
+    with pytest.raises(RuntimeError, match="429"):
+        Sam31Backend(MetaClient(transport=transport)).track(b"img", ["ok", "bad", "ok2"])
