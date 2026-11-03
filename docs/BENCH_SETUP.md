@@ -93,8 +93,9 @@ Know before you rely on it:
   `/bench`, `/health` and `/v/<id>` are public by design. Use a fresh random token, and stop the tunnel when you are done.
 - The address changes every time the tunnel restarts; the PC must stay on and awake.
 - Camera frames pass through the tunnel provider. This is not the privacy mode.
-- **One frame costs about 13 SAM requests** (one per part class). Sent one after another that took 27 s per frame; they are now
-  sent in parallel (about 6 s per frame). That is still slower than the blueprint's 5 s missing-part target, so with 13
-  classes a dropped part will usually be flagged late. Fewer classes means faster frames.
+- **One frame costs about 13 SAM requests** (one per part class), sent in parallel. Measured on 2026-11-03 with the 13 default
+  prompts: **2.3 to 3.0 s per frame** once warm; the first frame after a server start took 23 s. Sent one after another it was
+  27 s per frame. Roughly 3 s per check means a dropped part is flagged a few seconds after it leaves the frame, close to the
+  blueprint's 5 s target but not measured on a real bench.
 - The built-in task graph is the demo laptop (23 specific fasteners). A different device on your bench will not match it until
   the prompts and calibration are adapted.

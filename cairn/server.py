@@ -357,14 +357,21 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
             raise HTTPException(422, "empty image body")
         when = _now(rt, ts)
         fid = frame_id or f"img_{int(when * 1000)}"
+        started = time.perf_counter()
         try:
             frame = await asyncio.to_thread(perception.frame, fid, when, image)
         except Exception as e:
             raise HTTPException(502, f"perception failed: {type(e).__name__}: {e}")
+        ms = int((time.perf_counter() - started) * 1000)
         with rt.lock:
             rt.frames.save_image(frame.frame_id, image)
             alerts = rt.session.observe(frame)
-            return {**_out(rt, alerts), "detections": len(frame.detections), "frame_id": frame.frame_id}
+            # What the model saw in THIS picture, whether or not the task graph knows the part: the page draws it so the
+            # technician can tell "nothing is being checked" from "checked, nothing recognised".
+            seen = [{"cls": d.cls, "zone": d.zone, "conf": round(d.confidence, 2),
+                     "box": [round(v, 1) for v in d.box] if d.box else None} for d in frame.detections[:150]]
+            return {**_out(rt, alerts), "detections": len(frame.detections), "frame_id": frame.frame_id,
+                    "seen": seen, "ms": ms, "prompts": sorted(getattr(perception, "prompt_to_class", {}))}
 
     @app.post("/sessions/{sid}/taps", dependencies=secured)
     def post_tap(sid: str, body: TapIn):

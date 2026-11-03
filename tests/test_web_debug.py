@@ -166,3 +166,48 @@ const navigator = {mediaDevices: {getUserMedia: async (c) => {
     assert out.returncode == 0, out.stderr
     assert json.loads(out.stdout) == {"phone": ["environment"], "flipped": ["user"],
                                       "laptop": ["environment", "any"], "denied": [1, "NotAllowedError"]}
+
+
+def test_image_response_says_what_the_model_saw_so_the_page_can_show_it(tmp_path):
+    from cairn.session import Detection, Frame
+
+    class Fake:
+        prompt_to_class = {"battery": "battery", "fan": "fan"}
+
+        def frame(self, fid, ts, image):
+            return Frame(fid, ts, (Detection("a", "battery", "device", 0.8412, box=(10.04, 20, 110, 90)),
+                                   Detection("b", "fan", "bench", 0.5)))
+
+    c = TestClient(create_app(tmp_path, perception=Fake(), api_token=""))
+    sid = c.post("/sessions", json={"technician": "t"}).json()["id"]
+    r = c.post(f"/sessions/{sid}/image", content=b"jpeg").json()
+    assert r["detections"] == 2 and r["prompts"] == ["battery", "fan"] and isinstance(r["ms"], int)
+    assert r["seen"][0] == {"cls": "battery", "zone": "device", "conf": 0.84, "box": [10.0, 20, 110, 90]}
+    assert r["seen"][1]["box"] is None  # a detection without a box is still reported, not dropped
+
+
+def test_camera_page_always_says_whether_anything_is_being_checked():
+    html = (UI / "bench.html").read_text(encoding="utf-8")
+    assert 'id="camstat"' in html and 'role="status"' in html
+    for state in ("Camera on, but nothing is being checked", "Frames are only analysed inside a job",
+                  "none of this device's parts recognised", "The SAM call failed", "Paused: reviewing a past moment",
+                  "Dashed outlines show them"):
+        assert state in html, state
+    assert "if (!sid) { notify('Start a job so I can analyse" in html and "catch (e) { /* offline" not in html  # no silent skip
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_capture_keeps_the_cameras_aspect_ratio():
+    """A portrait phone frame used to be stretched into 960x600 before SAM saw it."""
+    html = (UI / "bench.html").read_text(encoding="utf-8")
+    start, end = html.index("function captureSize()"), html.index("function frameBlob(")
+    code = html[start:end] + """
+const sizes = [[1280, 720], [720, 1280], [1920, 1080], [640, 480], [1080, 1080]];
+const out = sizes.map(([w, h]) => { global.$ = () => ({videoWidth: w, videoHeight: h}); return captureSize(); });
+console.log(JSON.stringify(out));"""
+    out = subprocess.run(["node", "-e", code.replace("const v = $('cam')", "const v = $('cam')")], capture_output=True, text=True, timeout=20)
+    assert out.returncode == 0, out.stderr
+    got = json.loads(out.stdout)
+    assert got == [[960, 540], [540, 960], [960, 540], [960, 720], [960, 960]]
+    for (w, h), (cw, ch) in zip([[1280, 720], [720, 1280], [1920, 1080], [640, 480], [1080, 1080]], got):
+        assert abs(w / h - cw / ch) < 0.01
