@@ -92,7 +92,7 @@
   <div class="stat"><div class="n" id="st-acc">0</div><div class="l">ACCOUNTED</div></div>
   <div class="stat"><div class="n" id="st-miss">0</div><div class="l">MISSING</div></div>
   <div class="stat"><div class="n" id="st-state">sealed</div><div class="l">STATE</div></div>
-  <div id="meta"><span id="who"></span><span id="conn" role="status"></span><button id="btn-cam">Camera</button><button id="btn-base" style="display:none">Baseline</button>
+  <div id="meta"><span id="who"></span><span id="conn" role="status"></span><button id="btn-cam">Camera</button><button id="btn-base" style="display:none">Baseline</button><button id="btn-flip" style="display:none" title="Switch between the rear and front camera">Rear camera</button>
     <button id="btn-token" style="display:none">Enter token</button><button id="btn-sound" aria-pressed="true" title="Spoken alerts">Sound on</button><button id="btn-close" class="primary">Close job</button><button id="btn-new">Jobs</button></div>
 </header>
 <aside id="left" class="panel" aria-label="Tray map"><h2>Tray</h2><div id="wells" role="list"></div>
@@ -407,13 +407,45 @@ async function retire(pid) { const reason = await askText('Retire part', 'Why is
 
 /* ---------- camera ---------- */
 const prev = {px: null, sent: 0};
+let facing = 'environment';  // phones open the FRONT camera unless the page asks for the rear one
+async function openStream() {
+  // Ask for the wanted side first; fall back to any camera (a laptop has only one). A refusal is not retried.
+  let last;
+  for (const side of [{facingMode: {ideal: facing}}, {}]) {
+    try { return await navigator.mediaDevices.getUserMedia({video: {...side, width: {ideal: 1280}, height: {ideal: 720}}, audio: false}); }
+    catch (e) { last = e; if (e.name === 'NotAllowedError' || e.name === 'SecurityError') break; }
+  }
+  throw last;
+}
+function actualSide(stream) { const t = stream.getVideoTracks()[0]; return t && t.getSettings().facingMode; }
+function sideLabel(stream) {  // what the browser actually gave us, which may differ from what we asked for
+  const m = actualSide(stream);
+  return m === 'environment' ? 'Rear camera' : m === 'user' ? 'Front camera' : 'Switch camera';
+}
 async function toggleCam() {
-  if (camOn) { camStream.getTracks().forEach(t => t.stop()); camOn = false; shownFrame = null; $('cam').style.display = 'none'; $('ov').style.display = 'none'; $('feed').style.display = 'block'; $('btn-base').style.display = 'none'; return; }
-  try { camStream = await navigator.mediaDevices.getUserMedia({video: {width: 1280, height: 720}, audio: false}); }
+  if (camOn) { camStream.getTracks().forEach(t => t.stop()); camOn = false; shownFrame = null; $('cam').style.display = 'none'; $('ov').style.display = 'none'; $('feed').style.display = 'block'; $('btn-base').style.display = 'none'; $('btn-flip').style.display = 'none'; return; }
+  try { camStream = await openStream(); }
   catch (e) { notify('Camera unavailable: ' + (e.message || e.name)); return; }
   const v = $('cam'); v.srcObject = camStream; await v.play(); camOn = true;
   $('feed').style.display = 'none'; v.style.display = 'block'; $('ov').style.display = 'block'; $('btn-base').style.display = '';
+  $('btn-flip').style.display = ''; $('btn-flip').textContent = sideLabel(camStream);
+  if (actualSide(camStream)) facing = actualSide(camStream);  // remember the side we really got
   capLoop();
+}
+async function flipCam() {
+  const was = facing; facing = facing === 'environment' ? 'user' : 'environment';
+  camStream.getTracks().forEach(t => t.stop());  // phones usually cannot run two cameras at once, so stop first
+  try { camStream = await openStream(); }
+  catch (e) {
+    facing = was;
+    try { camStream = await openStream(); notify('Could not switch camera: ' + (e.message || e.name)); }
+    catch (e2) { camOn = false; $('cam').style.display = 'none'; $('ov').style.display = 'none'; $('feed').style.display = 'block'; $('btn-base').style.display = 'none'; $('btn-flip').style.display = 'none'; notify('Camera lost: ' + (e2.message || e2.name)); return; }
+  }
+  $('cam').srcObject = camStream; await $('cam').play(); prev.px = null; $('btn-flip').textContent = sideLabel(camStream);
+  const got = actualSide(camStream), asked = facing;
+  if (got) facing = got;  // keep our idea of the side in step with the real one
+  notify(got && got !== asked ? `This device has no ${asked === 'user' ? 'front' : 'rear'} camera; staying on the ${got === 'user' ? 'front' : 'rear'} one.`
+                              : sideLabel(camStream) + ' on. Tap Baseline again if you moved the phone.');
 }
 function frameBlob(quality = .8) {
   const v = $('cam'), c = document.createElement('canvas'); c.width = 960; c.height = 600; c.getContext('2d').drawImage(v, 0, 0, 960, 600);
@@ -453,6 +485,7 @@ function drawOverlay(s) {
 }
 addEventListener('resize', () => { if (camOn && lastSnap) drawOverlay(lastSnap); });
 $('btn-cam').onclick = toggleCam;
+$('btn-flip').onclick = flipCam;
 $('btn-base').onclick = async () => {
   try { const r = await api(`/sessions/${sid}/baseline`, {method: 'POST', body: await frameBlob(.9), headers: {'Content-Type': 'image/jpeg'}}, true); notify(r.ok ? 'Baseline of the sealed device saved.' : 'Baseline failed.'); }
   catch (e) { notify(friendly(e)); }
