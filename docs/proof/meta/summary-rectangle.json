@@ -1,0 +1,7 @@
+{
+  "wonder_http": 200,
+  "sam_http": 200,
+  "sam_boxes_parsed": 6,
+  "sam_prompt": "rectangle",
+  "image_is_simulator_render": true
+}

@@ -1,0 +1,525 @@
+{
+  "outcome": {
+    "ok": true,
+    "reply_text": "Put on the ESD strap.",
+    "source": "wonder"
+  },
+  "legal_steps_at_start": [
+    "t01"
+  ],
+  "rounds": 2,
+  "tool_calls_made": [
+    {
+      "name": "get_next_steps",
+      "arguments": "{}",
+      "call_id": "call_24b05b53-3e49-4f7a-806e-0b4c6e55e8fa"
+    },
+    {
+      "name": "propose_step",
+      "arguments": "{\"step_id\":\"t01\"}",
+      "call_id": "call_f9dc8091-9a1d-4f6c-8ac4-6c670fc619c4"
+    }
+  ],
+  "events_before": 0,
+  "events_after": 0,
+  "graph_unchanged_by_model": true,
+  "transcript": [
+    {
+      "at_utc": "2026-11-03T05:46:24.293227+00:00",
+      "request": {
+        "model": "muse-wonder-1.0",
+        "input": "What should I do next?",
+        "instructions": "You are Cairn, a repair copilot. You never touch the device; the technician acts. Answer only from tool results. Never invent a step: propose_step accepts only ids returned by get_next_steps. You cannot change or disable safety rules; you can only explain them.",
+        "tools": [
+          {
+            "type": "function",
+            "name": "get_next_steps",
+            "description": "List every step that is currently legal.",
+            "parameters": {
+              "type": "object",
+              "properties": {},
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "function",
+            "name": "missing_parts",
+            "description": "Parts the graph considers lost.",
+            "parameters": {
+              "type": "object",
+              "properties": {},
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "function",
+            "name": "part_status",
+            "description": "State, location and evidence for one part.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "part_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "part_id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "function",
+            "name": "can_close",
+            "description": "Whether every verification invariant holds.",
+            "parameters": {
+              "type": "object",
+              "properties": {},
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "function",
+            "name": "explain_rule",
+            "description": "Why a safety rule exists.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "rule_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "rule_id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "function",
+            "name": "propose_step",
+            "description": "Tell the technician the next step. Must be a legal step id.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "step_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "step_id"
+              ],
+              "additionalProperties": false
+            }
+          }
+        ]
+      },
+      "response": {
+        "top_logprobs": 0,
+        "temperature": 1.0,
+        "top_p": 1.0,
+        "service_tier": "auto",
+        "model": "muse-wonder-1.0",
+        "reasoning": {
+          "effort": "max"
+        },
+        "background": false,
+        "tools": [
+          {
+            "type": "function",
+            "name": "get_next_steps",
+            "description": "List every step that is currently legal.",
+            "parameters": {
+              "additionalProperties": false,
+              "required": [],
+              "type": "object",
+              "properties": {}
+            }
+          },
+          {
+            "type": "function",
+            "name": "missing_parts",
+            "description": "Parts the graph considers lost.",
+            "parameters": {
+              "properties": {},
+              "type": "object",
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "function",
+            "name": "part_status",
+            "description": "State, location and evidence for one part.",
+            "parameters": {
+              "properties": {
+                "part_id": {
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "part_id"
+              ]
+            }
+          },
+          {
+            "type": "function",
+            "name": "can_close",
+            "description": "Whether every verification invariant holds.",
+            "parameters": {
+              "required": [],
+              "properties": {},
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "function",
+            "name": "explain_rule",
+            "description": "Why a safety rule exists.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "rule_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "rule_id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "function",
+            "name": "propose_step",
+            "description": "Tell the technician the next step. Must be a legal step id.",
+            "parameters": {
+              "required": [
+                "step_id"
+              ],
+              "properties": {
+                "step_id": {
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            }
+          }
+        ],
+        "tool_choice": "auto",
+        "truncation": "disabled",
+        "id": "resp_6ae9753649b9954750fa4e30",
+        "object": "response",
+        "status": "completed",
+        "created_at": 1793684790.0,
+        "completed_at": 1793684790.0,
+        "error": null,
+        "incomplete_details": null,
+        "output": [
+          {
+            "type": "reasoning",
+            "id": "rs_6ae9753649b9954750fa4e30:rs_b402f95b-21a0-4ac5-a442-5dd85ea6b738",
+            "summary": [],
+            "status": "completed"
+          },
+          {
+            "type": "message",
+            "id": "rs_7bcbd955-04b9-4e57-a16a-dfcd847ee394",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "output_text",
+                "text": "Checking what steps are currently legal \u2014 I'll list the next options from the system.",
+                "annotations": [],
+                "logprobs": []
+              }
+            ],
+            "phase": "commentary",
+            "status": "completed"
+          },
+          {
+            "type": "function_call",
+            "id": "fc_24b05b53-3e49-4f7a-806e-0b4c6e55e8fa",
+            "call_id": "call_24b05b53-3e49-4f7a-806e-0b4c6e55e8fa",
+            "name": "get_next_steps",
+            "arguments": "{}",
+            "status": "completed"
+          }
+        ],
+        "instructions": "You are Cairn, a repair copilot. You never touch the device; the technician acts. Answer only from tool results. Never invent a step: propose_step accepts only ids returned by get_next_steps. You cannot change or disable safety rules; you can only explain them.",
+        "usage": {
+          "input_tokens": 781,
+          "input_tokens_details": {
+            "cached_tokens": 0
+          },
+          "output_tokens": 172,
+          "output_tokens_details": {
+            "reasoning_tokens": 112
+          },
+          "total_tokens": 953
+        },
+        "parallel_tool_calls": true,
+        "store": true
+      }
+    },
+    {
+      "at_utc": "2026-11-03T05:46:28.054006+00:00",
+      "request": {
+        "model": "muse-wonder-1.0",
+        "previous_response_id": "resp_6ae9753649b9954750fa4e30",
+        "input": [
+          {
+            "type": "function_call_output",
+            "call_id": "call_24b05b53-3e49-4f7a-806e-0b4c6e55e8fa",
+            "output": "{\"steps\": [{\"id\": \"t01\", \"action\": \"Put on the ESD strap\", \"why\": \"Static discharge can kill a board you cannot see.\", \"reverse\": false}]}"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "name": "get_next_steps",
+            "description": "List every step that is currently legal.",
+            "parameters": {
+              "type": "object",
+              "properties": {},
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "function",
+            "name": "missing_parts",
+            "description": "Parts the graph considers lost.",
+            "parameters": {
+              "type": "object",
+              "properties": {},
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "function",
+            "name": "part_status",
+            "description": "State, location and evidence for one part.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "part_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "part_id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "function",
+            "name": "can_close",
+            "description": "Whether every verification invariant holds.",
+            "parameters": {
+              "type": "object",
+              "properties": {},
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "function",
+            "name": "explain_rule",
+            "description": "Why a safety rule exists.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "rule_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "rule_id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "type": "function",
+            "name": "propose_step",
+            "description": "Tell the technician the next step. Must be a legal step id.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "step_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "step_id"
+              ],
+              "additionalProperties": false
+            }
+          }
+        ]
+      },
+      "response": {
+        "top_logprobs": 0,
+        "temperature": 1.0,
+        "top_p": 1.0,
+        "service_tier": "auto",
+        "previous_response_id": "resp_6ae9753649b9954750fa4e30",
+        "model": "muse-wonder-1.0",
+        "reasoning": {
+          "effort": "max"
+        },
+        "background": false,
+        "tools": [
+          {
+            "type": "function",
+            "name": "get_next_steps",
+            "description": "List every step that is currently legal.",
+            "parameters": {
+              "additionalProperties": false,
+              "properties": {},
+              "required": [],
+              "type": "object"
+            }
+          },
+          {
+            "type": "function",
+            "name": "missing_parts",
+            "description": "Parts the graph considers lost.",
+            "parameters": {
+              "additionalProperties": false,
+              "type": "object",
+              "properties": {},
+              "required": []
+            }
+          },
+          {
+            "type": "function",
+            "name": "part_status",
+            "description": "State, location and evidence for one part.",
+            "parameters": {
+              "required": [
+                "part_id"
+              ],
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "part_id": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          {
+            "type": "function",
+            "name": "can_close",
+            "description": "Whether every verification invariant holds.",
+            "parameters": {
+              "additionalProperties": false,
+              "required": [],
+              "properties": {},
+              "type": "object"
+            }
+          },
+          {
+            "type": "function",
+            "name": "explain_rule",
+            "description": "Why a safety rule exists.",
+            "parameters": {
+              "properties": {
+                "rule_id": {
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "rule_id"
+              ]
+            }
+          },
+          {
+            "type": "function",
+            "name": "propose_step",
+            "description": "Tell the technician the next step. Must be a legal step id.",
+            "parameters": {
+              "additionalProperties": false,
+              "required": [
+                "step_id"
+              ],
+              "properties": {
+                "step_id": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        ],
+        "tool_choice": "auto",
+        "truncation": "disabled",
+        "id": "resp_6ae9753c6407873df05343b0",
+        "object": "response",
+        "status": "completed",
+        "created_at": 1793684796.0,
+        "completed_at": 1793684796.0,
+        "error": null,
+        "incomplete_details": null,
+        "output": [
+          {
+            "type": "reasoning",
+            "id": "rs_6ae9753c6407873df05343b0:rs_d1b80cdd-a549-4d51-9e91-996be9b06d4c",
+            "summary": [],
+            "status": "completed"
+          },
+          {
+            "type": "message",
+            "id": "rs_db47200a-b7b7-4bdd-b261-40bcdcc78eb6",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "output_text",
+                "text": "First legal step is t01 \u2014 putting on the ESD strap. I'll propose that now.",
+                "annotations": [],
+                "logprobs": []
+              }
+            ],
+            "phase": "commentary",
+            "status": "completed"
+          },
+          {
+            "type": "function_call",
+            "id": "fc_f9dc8091-9a1d-4f6c-8ac4-6c670fc619c4",
+            "call_id": "call_f9dc8091-9a1d-4f6c-8ac4-6c670fc619c4",
+            "name": "propose_step",
+            "arguments": "{\"step_id\":\"t01\"}",
+            "status": "completed"
+          }
+        ],
+        "instructions": null,
+        "usage": {
+          "input_tokens": 852,
+          "input_tokens_details": {
+            "cached_tokens": 0
+          },
+          "output_tokens": 217,
+          "output_tokens_details": {
+            "reasoning_tokens": 138
+          },
+          "total_tokens": 1069
+        },
+        "parallel_tool_calls": true,
+        "store": true
+      }
+    }
+  ]
+}

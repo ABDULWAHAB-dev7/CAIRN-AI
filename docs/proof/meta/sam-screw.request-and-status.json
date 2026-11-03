@@ -1,0 +1,48 @@
+{
+  "called_at_utc": "2026-11-03T05:44:23.826299+00:00",
+  "env_var_used": "MODEL_API_KEY",
+  "endpoint": "https://api.meta.ai/v1/responses",
+  "http_status": 200,
+  "request_authorization": "Bearer [redacted]",
+  "request_body": {
+    "model": "sam-3.1",
+    "metadata": {
+      "include_confidence": "true"
+    },
+    "stream": true,
+    "input": [
+      {
+        "type": "message",
+        "role": "user",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "screw"
+          },
+          {
+            "type": "input_image",
+            "image_url": "data:image/jpeg;base64,[49253 bytes, sha256 3818b59c094314cb..., see sam_input.jpg]"
+          }
+        ]
+      }
+    ]
+  },
+  "response_headers": {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "x-ratelimit-limit-requests": "3000",
+    "x-ratelimit-remaining-requests": "3000",
+    "x-request-id": "905b98fe-97da-4873-abb6-b70f6fc1442c",
+    "Access-Control-Allow-Origin": "*",
+    "Date": "Tue, 03 Nov 2026 05:44:28 GMT",
+    "x-route": "model-api-rust",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close"
+  },
+  "image": {
+    "file": "sam_input.jpg",
+    "bytes": 49253,
+    "sha256": "3818b59c094314cbc15904fdbc50cab1d343768512a5e1fe11e943b35305fbd2",
+    "what_it_is": "a rendered frame from the bench SIMULATOR, not a photograph of a real bench"
+  }
+}

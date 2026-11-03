@@ -3,9 +3,11 @@
 Status of every item the end state asks for, then the drafts. Nothing marked TODO has been done; these need a
 physical bench, a camera, API access, or your voice.
 
-**Framing decision (2026-11-02):** both live Meta API calls were rejected (HTTP 401, invalid key), so SAM 3.1 perception is
-unproven. Until a real call and a real bench run succeed, the demo is presented as **memory and verification, with
-perception by tap**, and the eval table says "perception: not proven". Evidence: `docs/PROOF.md`, `docs/proof/meta/`.
+**Framing decision (2026-11-02, updated after the live calls):** the SAM 3.1 and Muse Wonder calls now succeed
+(`docs/PROOF.md` rows 11-12b), but SAM has only seen a simulator render. Perception on real parts is **unproven** until
+the kill test passes on a real bench. Until then the demo is presented as **memory and verification, with perception by
+tap**, and the eval table says "perception: not proven". If the kill test passes, say so with the real numbers from
+`eval/real/`; if it fails, keep this framing.
 
 | Item | Status |
 |---|---|
