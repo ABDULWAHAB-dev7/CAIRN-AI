@@ -4,9 +4,9 @@ Every claim the README makes, what backs it, and when it was run. Dates are UTC.
 claim is *not* supported and nobody should repeat it as if it were.
 
 **Read this first.** All sessions, frames, screenshots and eval numbers in this repo come from a bench **simulator**.
-No real camera, real bench or real teardown has been run. The Meta API clients **have now made successful live calls**
-(rows 11 to 13), but the only image SAM 3.1 has seen is a render from the simulator, so **perception on real parts is
-still unproven** (row 17). The first attempt, with an invalid key, was rejected with HTTP 401 and is kept in git history
+No real bench or real teardown has been run. The Meta API clients **made successful live calls on 2026-11-02**
+(rows 11 to 12b). On 2026-11-03 SAM was also tried on four public photos of open laptops (row 21), and later that day
+Meta started refusing every SAM call for billing (row 22). **Perception on a real teardown is still unproven** (row 17). The first attempt, with an invalid key, was rejected with HTTP 401 and is kept in git history
 (commit `522dd46`, `docs/proof/meta/` as it was then).
 
 | # | Claim | Status | Artefact | Run |
@@ -24,14 +24,18 @@ still unproven** (row 17). The first attempt, with an invalid key, was rejected 
 | 11 | **SAM 3.1 client: live call succeeds and the parser reads the live format** | **verified on a simulator render only.** HTTP 200 streaming. Prompt `square` → 44 boxes (one per mask, unique object ids, confidences 0.62 to 0.86), prompt `rectangle` → 6 boxes (confidences 0.53 to 0.55). The overlay shows the boxes landing on the squares in the picture. Prompt `screw` → 0 detections (the render contains no screws) | [`proof/meta/sam-square.request-and-status.json`](proof/meta/sam-square.request-and-status.json), [`.response.raw.txt`](proof/meta/sam-square.response.raw.txt), [`.overlay.png`](proof/meta/sam-square.overlay.png); same for [`rectangle`](proof/meta/sam-rectangle.overlay.png) and [`screw`](proof/meta/sam-screw.request-and-status.json); input [`sam_input.jpg`](proof/meta/sam_input.jpg) is a **simulator render, not a real bench**. Format locked by `tests/test_live_formats.py` | 2026-11-02 |
 | 12 | **Muse Wonder client: live plain-text call** | verified. HTTP 200, `status: completed`, a `reasoning` item then a `message` item with text `ok` | [`proof/meta/wonder.request-and-status.json`](proof/meta/wonder.request-and-status.json), [`wonder.response.raw.txt`](proof/meta/wonder.response.raw.txt) | 2026-11-02 |
 | 12b | **Muse Wonder tool-calling loop, as the agent uses it** | verified against a **simulated** session. The model called `get_next_steps`, then `propose_step("t01")` (the one legal step) and the reply was "Put on the ESD strap." The tool result went back via `function_call_output` + `previous_response_id`. The session log was 0 events before and after: the model wrote nothing | [`proof/meta/wonder-agent-loop.json`](proof/meta/wonder-agent-loop.json) (full request/response transcript), `scripts/prove_wonder_agent.py`, `tests/test_live_formats.py` | 2026-11-02 |
-| 13 | Browser camera capture sends frames to the server | **not exercised** (never run against a camera; the test browser blocked camera access) | none | n/a |
+| 13 | Browser camera capture sends frames to the server | **partly.** On 2026-11-03 the page sent frames from a scripted browser video stream to the server and showed the narration (scripted detections, not SAM). The owner opened a real phone camera once, but no job was started so nothing was analysed (fixed in PR #11). **No confirmed run with a real phone camera on a real laptop** | none saved | 2026-11-03 |
 | 14 | Docker image builds and runs | **not exercised** (Docker daemon was not running). `docker compose config` accepts the file; that output was not saved | none | n/a |
 | 15 | Glimmer (local model) client | tested against a fake chat endpoint only; **no model was run** | `tests/test_server.py::test_glimmer_tool_loop_over_chat_completions` | 2026-11-02 |
 | 16 | `CAIRN_PRIVACY=local` refuses cloud components | verified (unit test) | `tests/test_server.py::test_privacy_local_refuses_cloud_components` | 2026-11-02 |
-| 17 | SAM 3.1 tracks parts on a real bench (Day 1 kill test) | **not done** (needs a camera and a bench) | none | n/a |
+| 17 | SAM 3.1 tracks parts on a real bench (Day 1 kill test) | **not done** (needs a camera and a bench). Row 21 is partial evidence only, and it found no battery, drive, cover or memory, which the demo's hero moments need | none | n/a |
 | 18 | Eval on recorded real teardowns | **not done** | none | n/a |
 | 19 | 3-minute demo video | **not done** | none | n/a |
 | 20 | Muse Voice, Muse Image, video that never leaves the bench | **not built** | none | n/a |
+| 21 | **SAM 3.1 on real laptop photos** (open-bench classes) | **observed, not archived.** Four public Wikimedia Commons photos of open laptops. Reliably found: laptop, screw (34 in one close-up), fan, cable, circuit board. Found nothing for battery, hard drive, DVD drive, back cover, memory module. Screws only when the camera is close. Re-encoding the same picture re-finds about 31 of 34 screws. End to end with the open-bench session on one photo: "I can see 34 screws, 1 fan, 11 cables, 1 circuit board on the laptop". The photos and overlays are third-party images and are **not committed**, so a reader cannot re-check this from the repo. This is **not** the Day 1 kill test (no teardown, no recall measured against ground truth) | none in the repo | 2026-11-03 |
+| 22 | **Meta API refuses SAM calls: `402 billing_not_configured`** | **current blocker.** "Billing verification failed. Billing Issue." for the team behind the key. Reproduced with a 64 px image, so it is not specific to a photo. Cannot be fixed in this repo; needs the billing problem resolved at dev.meta.ai/billing. The camera panel and `/health` (`perception_warning`) now say so | `tests/test_open_bench.py::test_a_billing_refusal_from_meta_is_explained_and_shown_on_health` | 2026-11-03 |
+| 23 | **Open bench: narration for any laptop** (count, announce, removed, no longer on the laptop, back) | verified with scripted detections that renumber and shuffle objects on every call (like the real API) and with a browser run of the page; real SAM only on still photos (row 21). **A real removal was not filmed**: painting screws out of a photo did not remove them from SAM's view | `tests/test_open_bench.py` (23 tests) | 2026-11-03 |
+| 24 | 112 tests pass on `main`; CI green | verified | GitHub Actions `test` on merge commit `42f8152` (PR #12); `python -m pytest` locally | 2026-11-03 |
 
 ## What the live calls do and do not show
 

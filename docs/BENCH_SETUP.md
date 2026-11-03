@@ -68,8 +68,9 @@ failures included.
 
 ## What is not verified here
 
-No real camera, no live SAM or Wonder call, no Glimmer model, and no Docker build was run in the environment this
-was written in (the Docker daemon was not available; `docker compose config` validates).
+No Glimmer model and no Docker build was run (the Docker daemon was not available; `docker compose config` validates).
+Live SAM and Wonder calls succeeded on 2026-11-02 and SAM was tried on public laptop photos on 2026-11-03 (see
+`docs/PROOF.md`). No camera on a real teardown has been run, and from 2026-11-03 Meta refuses SAM calls for billing.
 
 ## Using a phone with no desktop in front of you (tunnel)
 

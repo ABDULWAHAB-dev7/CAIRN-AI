@@ -4,11 +4,11 @@
 
 The full plan is in [`docs/Cairn-Project-Blueprint.pdf`](docs/Cairn-Project-Blueprint.pdf). This repo is the build.
 
-> **Status at the submission freeze (read this first)**
-> - **Works, tested (78 tests, CI green):** hash-chained event log, object graph, safety kernel, five verification checks, signed passport (PDF + JSON + QR), HTTP backend, bench screen, close-job flow.
-> - **Simulated:** every session, frame, screenshot and eval number in this repo comes from a bench simulator. Nothing here is footage or measurements from a real camera.
-> - **Live Meta API: working on simulated input.** SAM 3.1 and Muse Wonder calls succeed, the SAM parser reads the live format, and the Wonder tool loop picked the one legal step ([`docs/PROOF.md`](docs/PROOF.md), rows 11-12b). **The only image SAM has seen is a render from the simulator.** Never run: browser camera capture and the Docker image build.
-> - **Perception on real parts is unproven.** No real bench has been run. Until the kill test passes, the demo is framed as memory and verification, with perception by tap when the camera path is not available.
+> **Status (updated 2026-11-03; read this first)**
+> - **Works, tested (112 tests, CI green on `main`):** hash-chained event log, object graph, safety kernel, five verification checks, signed passport (PDF + JSON + QR), HTTP backend, bench screen, close-job flow, and an **open-bench mode for any laptop** (below).
+> - **Simulated:** every session, frame, screenshot and eval number in this repo comes from a bench simulator. Nothing here is footage or measurements from a real teardown.
+> - **Live Meta API.** SAM 3.1 and Muse Wonder calls succeeded on 2026-11-02 (simulated input, [`docs/PROOF.md`](docs/PROOF.md) rows 11-12b). On 2026-11-03 SAM also found the laptop, screws, fan, cables and circuit board on four public photos of open laptops, and nothing for battery, drives, back cover or memory (row 21; the photos are not in this repo). **Later the same day Meta began refusing every SAM call with `402 billing_not_configured` for the key in use: perception is down until the billing problem on the Meta developer account is fixed** (row 22). The app says so on the camera panel and in `/health`.
+> - **Perception on a real teardown is unproven.** No phone camera has been run on a laptop being unscrewed. Until the kill test passes, the demo is framed as memory and verification, with perception by tap on the demo laptop.
 > - **Not built:** Muse Voice, Muse Image, local-only video, a recorded real teardown, a demo video.
 
 ![The bench screen replaying a simulated session at the moment a screw is flagged missing](docs/img/bench-drop.png)
@@ -29,11 +29,20 @@ cairn serve                        # http://localhost:8000
 Open it, choose **Jobs → Replay the scripted demo**, and click any timeline entry. No camera needed.
 
 ```bash
-python -m pytest                   # 78 tests
+python -m pytest                   # 112 tests
 cairn demo                         # scripted hero demo -> out/passport.{json,html,pdf}, repair.db
 cairn verify out/passport.json --db out/repair.db
 cairn eval                         # records 10 simulated sessions, replays and scores them -> eval/report.md
 ```
+
+## Open bench: any laptop
+
+Start a job with the device **Any laptop (open bench)**. There is no task list: SAM looks for `laptop`, `screw`, `fan`,
+`cable` and `circuit board`, each thing seen gets a slot, and the app narrates by counting ("I can see 31 screws on the
+laptop", "Removed screw p_07. 30 screws still on the laptop.", "Screw p_07 is no longer on the laptop"). A part must be
+missing for several seconds before it is reported, and nothing is announced if most parts vanish at once (the camera
+moved). Setup, the phone-over-tunnel route and measured limits: [`docs/BENCH_SETUP.md`](docs/BENCH_SETUP.md).
+Status: built and tested against scripted detections and real photos; **not run on a phone filming a real unscrewing**.
 
 ## Hosted replay
 
@@ -91,11 +100,12 @@ the functional test, a QR code to the public verify page, and the hash chain ove
 | Event log, object graph, task graph, safety kernel, invariants, signed passport (PDF + JSON + QR) | built, tested |
 | Identity tracking through dropout and new track ids; restart from the log alone | built, tested on simulated detections |
 | Bench screen, tray map, timeline with frames, state at any event, close job, manual fallback | built; checked in a browser against the simulator |
-| HTTP backend, auth, persistence, privacy mode, Glimmer client, Meta API clients | built, tested against fakes; **no live API call has been made** |
+| HTTP backend, auth, persistence, privacy mode, Glimmer client, Meta API clients | built, tested; live SAM and Wonder calls succeeded on 2026-11-02, then **refused with 402 billing on 2026-11-03** |
+| Open bench (any laptop): discover parts, count, narrate removals | built, tested (23 tests), exercised on real photos with real SAM; **not run on a real unscrewing** |
 | Eval harness on recorded-session files | built; the shipped sessions are **synthetic** |
 | Docker compose | written, `docker compose config` passes; **image build not run** |
 | SAM 3.1 on a real bench (Day 1 kill test) | **not done**: needs a camera and a bench |
-| Camera mode in the browser | written, **never run against a real camera** |
+| Camera mode in the browser | written; frames from a scripted browser stream reach the server and are narrated; **no confirmed end-to-end run with a real phone camera** |
 | Voice | browser speech recognition and synthesis; Muse Voice Transcribe **not integrated** |
 | Local perception (video never leaves the bench) | **not built**: SAM is a cloud API, see `docs/GLIMMER.md` |
 | 3-minute video, ten real recorded teardowns, real Glimmer run, backup footage | **not done**: see `docs/SUBMISSION.md` |
@@ -104,7 +114,7 @@ the functional test, a QR code to the public verify page, and the hash chain ove
 
 - **Perception.** Nobody has run SAM 3.1 on a real bench here. The simulator (`cairn/scenarios.py`) produces the detections SAM would, with injected dropout and track-id churn. It says nothing about real perception.
 - **The eval numbers are simulated.** `eval/report.md` demonstrates the harness and the safety and memory layers, not the product.
-- **Live API calls.** `cairn/meta_api.py` follows https://dev.meta.ai/docs but has only run against fake transports.
+- **Live API calls.** `cairn/meta_api.py` made successful calls on 2026-11-02 but, as of 2026-11-03, every SAM call is refused for billing. Latency was usually 3 to 6 s per picture with occasional 23 to 26 s outliers; cost per frame on a real bench is unmeasured.
 - **The "no robot, no cloud box" claim** holds for everything except perception.
 - **Passport trust.** The signature proves the record was not altered, not who signed it; tying a key to a real shop needs a key registry.
 
