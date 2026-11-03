@@ -7,8 +7,8 @@ The full plan is in [`docs/Cairn-Project-Blueprint.pdf`](docs/Cairn-Project-Blue
 > **Status at the submission freeze (read this first)**
 > - **Works, tested (78 tests, CI green):** hash-chained event log, object graph, safety kernel, five verification checks, signed passport (PDF + JSON + QR), HTTP backend, bench screen, close-job flow.
 > - **Simulated:** every session, frame, screenshot and eval number in this repo comes from a bench simulator. Nothing here is footage or measurements from a real camera.
-> - **Written but never run successfully:** the SAM 3.1 and Muse Wonder clients. Both live calls were attempted and **rejected with HTTP 401 (invalid key)**, so neither is proven ([`docs/PROOF.md`](docs/PROOF.md), rows 11-12). Also never run: browser camera capture and the Docker image build.
-> - **Perception is unproven.** The demo is therefore framed as memory and verification, with perception by tap when the camera path is not available.
+> - **Live Meta API: working on simulated input.** SAM 3.1 and Muse Wonder calls succeed, the SAM parser reads the live format, and the Wonder tool loop picked the one legal step ([`docs/PROOF.md`](docs/PROOF.md), rows 11-12b). **The only image SAM has seen is a render from the simulator.** Never run: browser camera capture and the Docker image build.
+> - **Perception on real parts is unproven.** No real bench has been run. Until the kill test passes, the demo is framed as memory and verification, with perception by tap when the camera path is not available.
 > - **Not built:** Muse Voice, Muse Image, local-only video, a recorded real teardown, a demo video.
 
 ![The bench screen replaying a simulated session at the moment a screw is flagged missing](docs/img/bench-drop.png)

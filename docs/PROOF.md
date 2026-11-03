@@ -4,8 +4,10 @@ Every claim the README makes, what backs it, and when it was run. Dates are UTC.
 claim is *not* supported and nobody should repeat it as if it were.
 
 **Read this first.** All sessions, frames, screenshots and eval numbers in this repo come from a bench **simulator**.
-No real camera, real bench or real teardown has been run. The Meta API clients have **never succeeded** in a live call:
-both attempts were rejected with HTTP 401 (see rows 11 and 12).
+No real camera, real bench or real teardown has been run. The Meta API clients **have now made successful live calls**
+(rows 11 to 13), but the only image SAM 3.1 has seen is a render from the simulator, so **perception on real parts is
+still unproven** (row 17). The first attempt, with an invalid key, was rejected with HTTP 401 and is kept in git history
+(commit `522dd46`, `docs/proof/meta/` as it was then).
 
 | # | Claim | Status | Artefact | Run |
 |---|---|---|---|---|
@@ -19,8 +21,9 @@ both attempts were rejected with HTTP 401 (see rows 11 and 12).
 | 8 | Eval table: recall, ID switches, missing-part latency, fault catch, false alarms | **synthetic only** | [`../eval/report.md`](../eval/report.md), [`../eval/metrics.json`](../eval/metrics.json) from `cairn eval` on 10 simulated sessions | 2026-11-02 |
 | 9 | Replaying a recorded session reproduces the original event log exactly | verified (simulated recordings) | `tests/test_eval.py::test_recording_replays_to_the_identical_event_log` | 2026-11-02 |
 | 10 | Hosted replay at https://cairn-ai-eta.vercel.app | verified at the time of the log | [`fresh-clone/live-site.txt`](proof/fresh-clone/live-site.txt). It is a read-only replay of the **simulated** demo. See *Incidents* | 2026-11-02 |
-| 11 | **SAM 3.1 client works against the live API** | **not exercised: key rejected (HTTP 401 `invalid_api_key`)** | [`proof/meta/sam.request-and-status.json`](proof/meta/sam.request-and-status.json), [`sam.response.raw.txt`](proof/meta/sam.response.raw.txt), [`summary.json`](proof/meta/summary.json). The input image was a **simulator render**, not a real bench | 2026-11-02 18:30 |
-| 12 | **Muse Wonder client works against the live API** | **not exercised: key rejected (HTTP 401 `invalid_api_key`)** | [`proof/meta/wonder.request-and-status.json`](proof/meta/wonder.request-and-status.json), [`wonder.response.raw.txt`](proof/meta/wonder.response.raw.txt) | 2026-11-02 18:30 |
+| 11 | **SAM 3.1 client: live call succeeds and the parser reads the live format** | **verified on a simulator render only.** HTTP 200 streaming. Prompt `square` → 44 boxes (one per mask, unique object ids, confidences 0.62 to 0.86), prompt `rectangle` → 6 boxes (confidences 0.53 to 0.55). The overlay shows the boxes landing on the squares in the picture. Prompt `screw` → 0 detections (the render contains no screws) | [`proof/meta/sam-square.request-and-status.json`](proof/meta/sam-square.request-and-status.json), [`.response.raw.txt`](proof/meta/sam-square.response.raw.txt), [`.overlay.png`](proof/meta/sam-square.overlay.png); same for [`rectangle`](proof/meta/sam-rectangle.overlay.png) and [`screw`](proof/meta/sam-screw.request-and-status.json); input [`sam_input.jpg`](proof/meta/sam_input.jpg) is a **simulator render, not a real bench**. Format locked by `tests/test_live_formats.py` | 2026-11-02 |
+| 12 | **Muse Wonder client: live plain-text call** | verified. HTTP 200, `status: completed`, a `reasoning` item then a `message` item with text `ok` | [`proof/meta/wonder.request-and-status.json`](proof/meta/wonder.request-and-status.json), [`wonder.response.raw.txt`](proof/meta/wonder.response.raw.txt) | 2026-11-02 |
+| 12b | **Muse Wonder tool-calling loop, as the agent uses it** | verified against a **simulated** session. The model called `get_next_steps`, then `propose_step("t01")` (the one legal step) and the reply was "Put on the ESD strap." The tool result went back via `function_call_output` + `previous_response_id`. The session log was 0 events before and after: the model wrote nothing | [`proof/meta/wonder-agent-loop.json`](proof/meta/wonder-agent-loop.json) (full request/response transcript), `scripts/prove_wonder_agent.py`, `tests/test_live_formats.py` | 2026-11-02 |
 | 13 | Browser camera capture sends frames to the server | **not exercised** (never run against a camera; the test browser blocked camera access) | none | n/a |
 | 14 | Docker image builds and runs | **not exercised** (Docker daemon was not running). `docker compose config` accepts the file; that output was not saved | none | n/a |
 | 15 | Glimmer (local model) client | tested against a fake chat endpoint only; **no model was run** | `tests/test_server.py::test_glimmer_tool_loop_over_chat_completions` | 2026-11-02 |
@@ -30,13 +33,18 @@ both attempts were rejected with HTTP 401 (see rows 11 and 12).
 | 19 | 3-minute demo video | **not done** | none | n/a |
 | 20 | Muse Voice, Muse Image, video that never leaves the bench | **not built** | none | n/a |
 
-## What the failed live calls do and do not show
+## What the live calls do and do not show
 
-The API answered both requests with a structured authentication error, so `https://api.meta.ai/v1/responses` exists and
-accepts the Bearer scheme the client uses. That is all. The request bodies, the streaming parser and the tool-call loop
-are **unvalidated against a real response**. To close rows 11 and 12: put a valid key in `MODEL_API_KEY`, then run
-`python scripts/prove_meta_api.py .` from the repo root. The script saves the redacted request, the raw response, the
-status and a timestamp, and fails loudly if the parser disagrees with the live schema.
+**They show:** the endpoint, the Bearer scheme, the request bodies for text, image and tool calls, SAM's streamed
+token format (`<0f>id<|box;x1;y1;x2;y2;w;h;c|><|mask;...|>`, coordinates in source pixels), and Wonder's response items
+(including a `reasoning` item the adapter must skip) all match what `cairn/meta_api.py` expects. No code change was
+needed. Reproduce with a valid key in `MODEL_API_KEY`: `python scripts/prove_meta_api.py . square` and
+`python scripts/prove_wonder_agent.py .`. The key is never written to any artefact (checked by search).
+
+**They do not show:** that SAM 3.1 can find screws, hands or any real part. The image was a dark mat with drawn squares,
+so "square" is an easy concept and "screw" correctly found nothing. SAM image requests are also stateless, so object
+ids restart on every call; identity across frames still relies on Cairn's own tracker, which has only been tested on
+simulated detections. Latency and cost per frame on a real bench are unmeasured. None of this replaces the kill test.
 
 ## Incidents
 

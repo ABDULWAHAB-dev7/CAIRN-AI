@@ -3,7 +3,8 @@ under docs/proof/meta/. The key (MODEL_API_KEY, else META_API_KEY) is read from 
 or written. The SAM input is a rendered frame from the bench SIMULATOR, not a real bench: a successful call proves
 the wiring and the parser, not perception.
 
-Usage (repo root):  python scripts/prove_meta_api.py .
+Usage (repo root):  python scripts/prove_meta_api.py . [sam-prompt]      (default prompt: "screw")
+Each SAM prompt is saved as its own artefact set (sam-<prompt>.*) so failed attempts are kept, not overwritten.
 """
 import base64
 import datetime
@@ -98,7 +99,8 @@ img.save(buf, "JPEG", quality=88)
 jpg = buf.getvalue()
 (out / "sam_input.jpg").write_bytes(jpg)
 assert len(jpg) < 2_000_000
-prompt = "screw"
+prompt = sys.argv[2] if len(sys.argv) > 2 else "screw"
+slug = re.sub(r"[^a-z0-9]+", "-", prompt.lower()).strip("-")
 data_url = "data:image/jpeg;base64," + base64.b64encode(jpg).decode()
 body = {"model": "sam-3.1", "metadata": {"include_confidence": "true"}, "stream": True,
         "input": [{"type": "message", "role": "user", "content": [
@@ -107,7 +109,7 @@ t, st, hd, raw = post("/responses", body, stream=True)
 redacted = json.loads(json.dumps(body))
 redacted["input"][0]["content"][1]["image_url"] = (
     f"data:image/jpeg;base64,[{len(jpg)} bytes, sha256 {hashlib.sha256(jpg).hexdigest()[:16]}..., see sam_input.jpg]")
-save("sam", redacted, t, st, hd, raw, {"image": {"file": "sam_input.jpg", "bytes": len(jpg),
+save(f"sam-{slug}", redacted, t, st, hd, raw, {"image": {"file": "sam_input.jpg", "bytes": len(jpg),
      "sha256": hashlib.sha256(jpg).hexdigest(),
      "what_it_is": "a rendered frame from the bench SIMULATOR, not a photograph of a real bench"}})
 results["sam"] = st
@@ -125,7 +127,7 @@ for line in raw.splitlines():
         if ev.get("type") == "response.output_text.delta":
             deltas.append(ev.get("delta", ""))
 text = "".join(deltas)
-(out / "sam.output_text.txt").write_text(text, encoding="utf-8")
+(out / f"sam-{slug}.output_text.txt").write_text(text, encoding="utf-8")
 from cairn.meta_api import parse_segmentation  # noqa: E402
 
 try:
@@ -141,8 +143,8 @@ d = ImageDraw.Draw(overlay)
 for frame, oid, box, conf in boxes:
     d.rectangle(box, outline="#ab8ff1", width=2)
     d.text((box[0], max(0, box[1] - 12)), f"id{oid} {conf:.2f}", fill="#dad7de")
-overlay.save(out / "sam_overlay.png")
-(out / "summary.json").write_text(json.dumps({
+overlay.save(out / f"sam-{slug}.overlay.png")
+(out / f"summary-{slug}.json").write_text(json.dumps({
     "wonder_http": results["wonder"], "sam_http": results["sam"], "sam_boxes_parsed": len(boxes),
     "sam_prompt": prompt, "image_is_simulator_render": True}, indent=2), encoding="utf-8")
 print("saved to", out)
