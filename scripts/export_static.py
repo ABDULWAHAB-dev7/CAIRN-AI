@@ -54,8 +54,16 @@ SHIM = r"""
   addEventListener('DOMContentLoaded', () => {
     const top = document.getElementById('top'); if (!top) return;
     const pill = document.createElement('span'); pill.className = 'pill'; pill.setAttribute('role', 'note');
-    pill.textContent = 'Read-only replay of a simulated session. No camera, no model.';
+    pill.textContent = 'Read-only replay of a simulated session. No camera, no model. For the live app, run docker compose up.';
     top.insertBefore(pill, document.getElementById('meta'));
+    // Camera and sound only work against the real server. Leaving them clickable made the replay look broken
+    // (a webcam opened, frames got a 409, and the status panel said "Problem"). Say so instead.
+    for (const id of ['btn-cam', 'btn-base', 'btn-flip', 'btn-sound']) {
+      const b = document.getElementById(id); if (!b) continue;
+      b.disabled = true; b.setAttribute('aria-disabled', 'true');
+      b.title = 'Needs the live app: docker compose up';
+      b.style.opacity = '.45'; b.style.cursor = 'not-allowed';
+    }
   });
 })();
 </script>
