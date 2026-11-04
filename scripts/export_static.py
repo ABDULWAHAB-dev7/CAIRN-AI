@@ -35,6 +35,7 @@ SHIM = r"""
     await ready;
     const p = new URL(url, location.href).pathname, method = (opts.method || 'GET').toUpperCase();
     let m;
+    if (p === '/health') return json({ok: true, perception: null, perception_warning: ''});
     if (p === '/sessions' && method === 'GET') return json({sessions: [META]});
     if (p === '/devices') return json({devices: ['demo_laptop']});
     if (p === '/demo' || (p === '/sessions' && method === 'POST')) return json({...META, snapshot: SESSION.snapshot});

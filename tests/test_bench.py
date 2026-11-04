@@ -216,7 +216,7 @@ def test_public_verify_page_needs_no_token_and_flags_tampering(tmp_path):
 def test_landing_bench_and_design_assets_are_served(client):
     home = client.get("/")
     assert home.status_code == 200 and "Object permanence for physical work" in home.text and 'href="/bench' in home.text
-    assert "Not yet" in home.text and "SAM 3.1 on a real camera" in home.text  # the page says what is not done
+    assert "Not yet" in home.text and "SAM 3.1 on a real bench" in home.text  # the page says what is not done
     bench = client.get("/bench")
     assert bench.status_code == 200 and "Cairn Bench" in bench.text and "REMOVED" in bench.text and "Close job" in bench.text
     css = client.get("/ui/tokens.css")
