@@ -10,7 +10,7 @@ import random
 from dataclasses import dataclass, field
 
 from . import geometry as geo
-from .device import Device, demo_laptop
+from .device import demo_laptop
 from .events import EventLog
 from .session import Alert, Detection, Frame, Session
 

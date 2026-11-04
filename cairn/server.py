@@ -13,7 +13,6 @@ Config (environment):
 from __future__ import annotations
 
 import asyncio
-import base64
 import dataclasses
 import hmac
 import html
@@ -611,7 +610,6 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
         """Stateless: check a passport's signature and, if events are supplied, the hash chain."""
         if "body" not in body or "signature" not in body:
             raise HTTPException(422, "expected {body, signature}")
-        from .events import Event
         try:
             events = [Event(**e) for e in body["events"]] if body.get("events") is not None else None
             ok, problems = passport.verify({"body": body["body"], "signature": body["signature"],
@@ -691,6 +689,10 @@ def create_app(data_dir: str | Path | None = None, agent: Agent | None = None, p
         note = esc("; ".join(problems)) if problems else "Signature and hash chain checked against the event log."
         return (
             "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<link rel=icon href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'"
+            "%3E%3Crect width='32' height='32' rx='8' fill='%2308080a'/%3E%3Crect x='9' y='20' width='14' height='4'"
+            " rx='2' fill='%23ab8ff1'/%3E%3Crect x='11' y='15' width='10' height='4' rx='2' fill='%23dad7de'/%3E"
+            "%3Crect x='13' y='10' width='6' height='4' rx='2' fill='%23fff'/%3E%3C/svg%3E\">"
             "<title>Cairn passport check</title>"
             "<body style='font:16px system-ui;max-width:560px;margin:2rem auto;padding:0 1rem'>"
             f"<h1 style='color:{color}'>{verdict}</h1>"

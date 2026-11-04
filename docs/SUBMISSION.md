@@ -3,7 +3,7 @@
 Status of every item the end state asks for, then the drafts. Nothing marked TODO has been done; these need a
 physical bench, a camera, API access, or your voice.
 
-**Framing decision (2026-11-02, updated after the live calls):** the SAM 3.1 and Muse Wonder calls now succeed
+**Framing decision (2026-11-02, last checked 2026-11-04):** the SAM 3.1 and Muse Wonder calls now succeed
 (`docs/PROOF.md` rows 11-12b), but SAM has only seen a simulator render. Perception on real parts is **unproven** until
 the kill test passes on a real bench. Until then the demo is presented as **memory and verification, with perception by
 tap**, and the eval table says "perception: not proven". If the kill test passes, say so with the real numbers from
@@ -11,7 +11,7 @@ tap**, and the eval table says "perception: not proven". If the kill test passes
 
 | Item | Status |
 |---|---|
-| Working repo, `docker compose up`, replay mode without a camera | built; Docker build untested here |
+| Working repo, `docker compose up`, replay mode without a camera | **verified 2026-11-04**: image builds, Compose is healthy, `/demo` and the passport PDF work inside the container (see `docs/proof/docker/docker-verify.txt`) |
 | Single-view bench screen, tray map, timeline with frames, voice bar, close job | built, tested in a browser on the simulator |
 | Passport PDF + JSON with QR, evidence frames, hash chain, status line | built, tested |
 | Eval table, ten sessions | harness built; sessions are **synthetic**. TODO: record ten real teardowns |
@@ -31,6 +31,21 @@ object graph, catches missing, wrong and out-of-order parts, enforces a safety k
 closes the job with a signed repair passport that anyone can verify. In the demo a technician drops a screw, reaches
 for the SSD with the battery connected, grabs the wrong screw, walks away for lunch and comes back to exactly the
 same state. It targets the 62M-tonne e-waste problem and the repair skills gap.
+
+## What is simulated
+
+Put this where judges see it, in these words or close to them:
+
+> Everything in this repo that looks like a bench session — the frames, the screenshots, the ten eval runs, the
+> hero demo — comes from a bench simulator (`cairn/scenarios.py`). It exercises the memory, safety and verification
+> layers; it says nothing about real perception. The Meta API clients made successful live calls on 2026-11-02
+> (SAM 3.1 and Muse Wonder, transcripts in `docs/PROOF.md`), and SAM found laptop, screws, fan, cable and circuit
+> board on real photos of open laptops on 2026-11-03, but not battery, drives, back cover or memory. On
+> 2026-11-03 Meta began refusing SAM calls with `402 billing_not_configured`, so perception is not available in this
+> build. The demo is memory and verification, with perception by tap; the safety kernel, the invariants, the signed
+> passport and the verification page are real and tested.
+
+Do not say "Cairn tracks every part on your bench" without the second half of that paragraph.
 
 ## 3-minute video: shot list (record five takes, keep the cleanest)
 
@@ -67,14 +82,24 @@ Drop a screw. Skip the battery step. Walk away. Cairn remembers."
 5. The output is a signed repair passport: counts that reconcile, evidence frames, a QR and a hash chain over the log.
 6. 62M tonnes of e-waste a year; right-to-repair is growing, repair capability isn't. Repo and demo: (link)
 
-## Submission checklist
+## Submission checklist (state at 2026-11-04)
 
-- [ ] 3-minute captioned video, playable muted, three hero moments each readable in under 10 seconds
-- [ ] One-paragraph pitch (above)
-- [ ] Architecture diagram: `docs/ARCHITECTURE.md`
-- [ ] Eval table from **real** recordings, with at least one honest failure (`eval/report.md` is synthetic)
-- [ ] Sample passport PDF + JSON from a real job (`cairn demo` makes a simulated one)
-- [ ] Glimmer deployment note with measured latency (`docs/GLIMMER.md`)
-- [ ] 30-second clip and thread
-- [ ] Backup footage, a second device, a second tray
-- [ ] Every figure checked against its primary source; every claimed model has a visible role in the video
+| Item | State |
+|---|---|
+| One-paragraph pitch | **done** (above) |
+| Architecture diagram | **done**: `docs/ARCHITECTURE.md` |
+| Working repo, one command, replay without a camera | **done and verified** |
+| Signed passport PDF + JSON with QR and hash chain | **done** (from a simulated job; labelled) |
+| Proof ledger with dates and artefacts | **done**: `docs/PROOF.md`, 25 rows |
+| MIT licence | **done**: `LICENSE` |
+| 3-minute captioned video | **yours to record**; shot list above, shot-by-shot runbook in `docs/DEMO-RUNBOOK.md` |
+| Eval table from **real** recordings | **yours**: `eval/report.md` is synthetic and says so |
+| Sample passport from a **real** job | **yours**; `cairn demo` only makes a simulated one |
+| 30-second clip and thread | drafts above; **yours to post** |
+| Glimmer note with measured latency | note exists; **no model was run** |
+| Backup footage, second device, second tray | **yours** |
+| Every figure checked against its primary source | **yours**; the appendix numbers are secondary |
+| Every claimed model has a visible role in the video | **yours**; SAM is currently blocked by billing |
+
+If you run out of time, ship the first six rows and be explicit about the rest. A small, true submission beats a
+large, unverifiable one.

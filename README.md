@@ -2,38 +2,43 @@
 
 **Object permanence for physical work.** Cairn watches a repair bench, gives every part a persistent identity, remembers the teardown across time, catches missing, wrong or out-of-order parts, and ends with a signed, independently verifiable repair passport.
 
-The full plan is in [`docs/Cairn-Project-Blueprint.pdf`](docs/Cairn-Project-Blueprint.pdf). This repo is the build.
+AI can design a laptop. It cannot take one apart, because it has object recognition but no object permanence: the screw it just identified is forgotten the moment it leaves the frame. Cairn is the memory layer, the safety kernel and the proof.
 
-> **Status (updated 2026-11-03; read this first)**
-> - **Works, tested (112 tests, CI green on `main`):** hash-chained event log, object graph, safety kernel, five verification checks, signed passport (PDF + JSON + QR), HTTP backend, bench screen, close-job flow, and an **open-bench mode for any laptop** (below).
-> - **Simulated:** every session, frame, screenshot and eval number in this repo comes from a bench simulator. Nothing here is footage or measurements from a real teardown.
-> - **Live Meta API.** SAM 3.1 and Muse Wonder calls succeeded on 2026-11-02 (simulated input, [`docs/PROOF.md`](docs/PROOF.md) rows 11-12b). On 2026-11-03 SAM also found the laptop, screws, fan, cables and circuit board on four public photos of open laptops, and nothing for battery, drives, back cover or memory (row 21; the photos are not in this repo). **Later the same day Meta began refusing every SAM call with `402 billing_not_configured` for the key in use: perception is down until the billing problem on the Meta developer account is fixed** (row 22). The app says so on the camera panel and in `/health`.
-> - **Perception on a real teardown is unproven.** No phone camera has been run on a laptop being unscrewed. Until the kill test passes, the demo is framed as memory and verification, with perception by tap on the demo laptop.
-> - **Not built:** Muse Voice, Muse Image, local-only video, a recorded real teardown, a demo video.
+**Try it:** [live replay](https://cairn-ai-eta.vercel.app) (no camera, no key) · [blueprint (PDF)](docs/Cairn-Project-Blueprint.pdf) · [what is real and what is simulated](docs/PROOF.md) · [submission kit](docs/SUBMISSION.md)
+
+Built for the Meta Global AI Developer Hackathon 2026. Integration targets: SAM 3.1, Muse Wonder, Muse Glimmer, Muse Voice.
 
 ![The bench screen replaying a simulated session at the moment a screw is flagged missing](docs/img/bench-drop.png)
-*Screenshot of the running app replaying the **simulated** demo: REMOVED 16, ACCOUNTED 14, MISSING 1. Not a real bench.*
-
-![Closing the job: VERIFIED](docs/img/passport-closed.png)
-*Closing the same simulated job: the verifier passes and the passport is signed.*
+*The running app replaying the **simulated** demo: REMOVED 16, ACCOUNTED 14, MISSING 1. Not a real bench.*
 
 ## Run it
 
 ```bash
-docker compose up                  # http://localhost:8000  (Docker build not yet tested; see docs/BENCH_SETUP.md)
+docker compose up                  # http://localhost:8000  (Docker build verified 2026-11-04)
 # or
 pip install -e ".[server,dev]"
 cairn serve                        # http://localhost:8000
 ```
 
-Open it, choose **Jobs → Replay the scripted demo**, and click any timeline entry. No camera needed.
+Open it, choose **Jobs → Replay the scripted demo**, and click any timeline entry. No camera needed. The container also produces the passport PDF, so PDF fonts are not a user problem.
 
 ```bash
-python -m pytest                   # 112 tests
+python -m pytest                   # 113 tests
 cairn demo                         # scripted hero demo -> out/passport.{json,html,pdf}, repair.db
 cairn verify out/passport.json --db out/repair.db
 cairn eval                         # records 10 simulated sessions, replays and scores them -> eval/report.md
 ```
+
+## Status (read this before quoting any number)
+
+> - **Works, tested (113 tests, CI green on `main`):** hash-chained event log, object graph, safety kernel, five verification checks, signed passport (PDF + JSON + QR), HTTP backend, bench screen, close-job flow, Docker Compose, and an **open-bench mode for any laptop** (below).
+> - **Simulated:** every session, frame, screenshot and eval number in this repo comes from a bench simulator. Nothing here is footage or measurements from a real teardown.
+> - **Live Meta API.** SAM 3.1 and Muse Wonder calls succeeded on 2026-11-02 (simulated input, [`docs/PROOF.md`](docs/PROOF.md) rows 11-12b). On 2026-11-03 SAM also found the laptop, screws, fan, cables and circuit board on four public photos of open laptops, and nothing for battery, drives, back cover or memory (row 21; the photos are not in this repo). **Later the same day Meta began refusing every SAM call with `402 billing_not_configured` for the key in use: perception is down until the billing problem on the Meta developer account is fixed** (row 22). The app says so on the camera panel and in `/health`.
+> - **Perception on a real teardown is unproven.** No phone camera has been run on a laptop being unscrewed. Until the kill test passes, the demo is framed as memory and verification, with perception by tap on the demo laptop.
+> - **Not built:** Muse Voice, Muse Image, local-only video, a recorded real teardown, a demo video.
+
+![Closing the job: VERIFIED](docs/img/passport-closed.png)
+*Closing the same simulated job: the verifier passes and the passport is signed.*
 
 ## Open bench: any laptop
 
@@ -103,7 +108,7 @@ the functional test, a QR code to the public verify page, and the hash chain ove
 | HTTP backend, auth, persistence, privacy mode, Glimmer client, Meta API clients | built, tested; live SAM and Wonder calls succeeded on 2026-11-02, then **refused with 402 billing on 2026-11-03** |
 | Open bench (any laptop): discover parts, count, narrate removals | built, tested (23 tests), exercised on real photos with real SAM; **not run on a real unscrewing** |
 | Eval harness on recorded-session files | built; the shipped sessions are **synthetic** |
-| Docker compose | written, `docker compose config` passes; **image build not run** |
+| Docker compose | **verified 2026-11-04**: image builds, `docker compose up` is healthy, `/demo` returns a session, the passport PDF renders inside the container |
 | SAM 3.1 on a real bench (Day 1 kill test) | **not done**: needs a camera and a bench |
 | Camera mode in the browser | written; frames from a scripted browser stream reach the server and are narrated; **no confirmed end-to-end run with a real phone camera** |
 | Voice | browser speech recognition and synthesis; Muse Voice Transcribe **not integrated** |
@@ -133,3 +138,7 @@ cairn/evaluation.py record, replay, score          docs/               setup, Gl
 ```
 
 Design rule: the model never writes to the graph. Perception proposes detections, the session decides, the log records, and the passport only issues when every invariant holds.
+
+## Licence
+
+MIT. See [`LICENSE`](LICENSE).
