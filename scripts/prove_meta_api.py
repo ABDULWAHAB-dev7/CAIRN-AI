@@ -71,7 +71,6 @@ print("wonder http", st, "|", raw[:160].replace("\n", " "))
 # ---- SAM 3.1: one still image (a rendered simulator frame: NOT a real bench) -------------------
 from PIL import Image  # noqa: E402
 
-from cairn.device import demo_laptop  # noqa: E402
 from cairn.frames import render_png  # noqa: E402
 from cairn.scenarios import hero_demo  # noqa: E402
 
