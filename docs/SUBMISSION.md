@@ -18,8 +18,8 @@ tap**, and the eval table says "perception: not proven". If the kill test passes
 | Open bench: narrate any laptop (count, removed, no longer on the laptop) | built, tested; **not run on a real unscrewing**. SAM found laptop, screws, fan, cable, board on real photos and **not** battery, drives, cover or memory |
 | Meta API access | **blocked 2026-11-03: `402 billing_not_configured`** until the billing problem is fixed at dev.meta.ai/billing |
 | Day 1 kill test (SAM 3.1 on a real bench) | **TODO**, see `docs/BENCH_SETUP.md` |
-| 3-minute video | **TODO**: shot list below |
-| 30-second clip, thread | **TODO**: drafts below |
+| 3-minute video | **built, 2:31**: a captioned replay of the **simulated** demo (`docs/video/cairn-demo.mp4`, how: `docs/VIDEO.md`). Not real-bench footage and not narrated; a live recording per `docs/DEMO-RUNBOOK.md` would still be stronger |
+| 30-second clip, thread | clip built (`docs/video/cairn-30s.mp4`, 26 s); thread: drafts below, **yours to post** |
 | Local Glimmer deployment note | `docs/GLIMMER.md`; no model run yet |
 | Backup footage, second device | **TODO** |
 
@@ -92,10 +92,10 @@ Drop a screw. Skip the battery step. Walk away. Cairn remembers."
 | Signed passport PDF + JSON with QR and hash chain | **done** (from a simulated job; labelled) |
 | Proof ledger with dates and artefacts | **done**: `docs/PROOF.md`, 25 rows |
 | MIT licence | **done**: `LICENSE` |
-| 3-minute captioned video | **yours to record**; shot list above, shot-by-shot runbook in `docs/DEMO-RUNBOOK.md` |
+| 3-minute captioned video | **built** as a replay of the simulated demo (`docs/video/cairn-demo.mp4`, 2:31); **yours to upload**. A live take per `docs/DEMO-RUNBOOK.md` would replace it |
 | Eval table from **real** recordings | **yours**: `eval/report.md` is synthetic and says so |
 | Sample passport from a **real** job | **yours**; `cairn demo` only makes a simulated one |
-| 30-second clip and thread | drafts above; **yours to post** |
+| 30-second clip and thread | clip **built** (`docs/video/cairn-30s.mp4`); thread drafts above; **yours to post** |
 | Glimmer note with measured latency | note exists; **no model was run** |
 | Backup footage, second device, second tray | **yours** |
 | Every figure checked against its primary source | **yours**; the appendix numbers are secondary |
