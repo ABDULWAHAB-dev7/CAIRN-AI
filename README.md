@@ -4,7 +4,7 @@
 
 AI can design a laptop. It cannot take one apart, because it has object recognition but no object permanence: the screw it just identified is forgotten the moment it leaves the frame. Cairn is the memory layer, the safety kernel and the proof.
 
-**Try it:** [live replay](https://cairn-ai-eta.vercel.app) (no camera, no key) · [blueprint (PDF)](docs/Cairn-Project-Blueprint.pdf) · [what is real and what is simulated](docs/PROOF.md) · [submission kit](docs/SUBMISSION.md) · [demo video, 2:31](docs/video/cairn-demo.mp4) (captioned replay of the simulated demo, [how it was made](docs/VIDEO.md))
+**Try it:** [live replay](https://cairn-ai-eta.vercel.app) (no camera, no key) · [blueprint (PDF)](docs/Cairn-Project-Blueprint.pdf) · [what is real and what is simulated](docs/PROOF.md) · [submission kit](docs/SUBMISSION.md) · [demo video, 2:31](docs/video/cairn-demo.mp4) (captioned replay of the simulated demo, [how it was made](docs/VIDEO.md)) · [explainer video, 5:36](docs/video/cairn-explained.mp4) (the whole project, narrated, [how it was made](docs/EXPLAINER.md))
 
 Built for the Meta Global AI Developer Hackathon 2026. Integration targets: SAM 3.1, Muse Wonder, Muse Glimmer, Muse Voice.
 
@@ -23,7 +23,7 @@ cairn serve                        # http://localhost:8000
 Open it, choose **Jobs → Replay the scripted demo**, and click any timeline entry. No camera needed. The container also produces the passport PDF, so PDF fonts are not a user problem.
 
 ```bash
-python -m pytest                   # 113 tests (3 more run if Playwright is installed)
+python -m pytest                   # 117 tests (3 more run if Playwright is installed)
 cairn demo                         # scripted hero demo -> out/passport.{json,html,pdf}, repair.db
 cairn verify out/passport.json --db out/repair.db
 cairn eval                         # records 10 simulated sessions, replays and scores them -> eval/report.md
@@ -31,7 +31,7 @@ cairn eval                         # records 10 simulated sessions, replays and 
 
 ## Status (read this before quoting any number)
 
-> - **Works, tested (113 tests, CI green on `main`):** hash-chained event log, object graph, safety kernel, five verification checks, signed passport (PDF + JSON + QR), HTTP backend, bench screen, close-job flow, Docker Compose, and an **open-bench mode for any laptop** (below).
+> - **Works, tested (117 tests, CI green on `main`):** hash-chained event log, object graph, safety kernel, five verification checks, signed passport (PDF + JSON + QR), HTTP backend, bench screen, close-job flow, Docker Compose, and an **open-bench mode for any laptop** (below).
 > - **Simulated:** every session, frame, screenshot and eval number in this repo comes from a bench simulator. Nothing here is footage or measurements from a real teardown.
 > - **Live Meta API.** SAM 3.1 and Muse Wonder calls succeeded on 2026-11-02 (simulated input, [`docs/PROOF.md`](docs/PROOF.md) rows 11-12b). On 2026-11-03 SAM also found the laptop, screws, fan, cables and circuit board on four public photos of open laptops, and nothing for battery, drives, back cover or memory (row 21; the photos are not in this repo). **Later the same day Meta began refusing every SAM call with `402 billing_not_configured` for the key in use: perception is down until the billing problem on the Meta developer account is fixed** (row 22). The app says so on the camera panel and in `/health`.
 > - **Perception on a real teardown is unproven.** No phone camera has been run on a laptop being unscrewed. Until the kill test passes, the demo is framed as memory and verification, with perception by tap on the demo laptop.
