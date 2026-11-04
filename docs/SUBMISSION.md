@@ -19,6 +19,7 @@ tap**, and the eval table says "perception: not proven". If the kill test passes
 | Meta API access | **blocked 2026-11-03: `402 billing_not_configured`** until the billing problem is fixed at dev.meta.ai/billing |
 | Day 1 kill test (SAM 3.1 on a real bench) | **TODO**, see `docs/BENCH_SETUP.md` |
 | 3-minute video | **built, 2:31**: a captioned replay of the **simulated** demo (`docs/video/cairn-demo.mp4`, how: `docs/VIDEO.md`). Not real-bench footage and not narrated; a live recording per `docs/DEMO-RUNBOOK.md` would still be stronger |
+| Long explainer video (5:36, narrated) | **built**: `docs/video/cairn-explained.mp4`, how: `docs/EXPLAINER.md`. Over the three-minute cap, so it supplements `cairn-demo.mp4` rather than replacing it |
 | 30-second clip, thread | clip built (`docs/video/cairn-30s.mp4`, 26 s); thread: drafts below, **yours to post** |
 | Local Glimmer deployment note | `docs/GLIMMER.md`; no model run yet |
 | Backup footage, second device | **TODO** |
